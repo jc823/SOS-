@@ -47,7 +47,7 @@ app.use(
 // ─── Serve static frontend in production ───────────────────────────────────
 const isProd = ENV.nodeEnv === "production";
 if (isProd) {
-  const distDir = path.resolve(__dirname, "../../dist/public");
+  const distDir = path.resolve(process.cwd(), "dist/public");
   app.use(express.static(distDir));
   app.get("*", (_req, res) => {
     res.sendFile(path.join(distDir, "index.html"));
