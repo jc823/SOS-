@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronUp, Wrench, Phone, Megaphone, Users } from 'lucide-react';
 import { getBandColor } from '@/lib/sos-engine';
 import type { PillarDef, PillarResult, SubcategoryInput } from '@/lib/sos-engine';
-import ConsultationScoreInput from './ConsultationScoreInput';
+// ConsultationScoreInput shelved
 
 const ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   Wrench, Phone, Megaphone, Users,
@@ -108,17 +108,7 @@ export default function ConsultationPillarCard({
             className="overflow-hidden"
           >
             <div className="p-4 space-y-2">
-              {pillar.subcategories.map((sub) => (
-                <ConsultationScoreInput
-                  key={sub.id}
-                  subId={sub.id}
-                  label={sub.label}
-                  hint={sub.hint}
-                  value={inputs[sub.id]?.score || 0}
-                  note={inputs[sub.id]?.note || ''}
-                  onChange={(score, note) => onScoreChange(sub.id, score, note)}
-                />
-              ))}
+              {/* ConsultationScoreInput shelved */}
             </div>
           </motion.div>
         )}

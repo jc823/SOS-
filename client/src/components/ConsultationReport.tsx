@@ -27,7 +27,7 @@ import {
 } from '@/lib/sos-engine';
 import { computeCostOfNotChanging, computeTrajectoryData, formatCurrency } from '@/lib/cost-engine';
 import { computeAdSpendROI } from '@/lib/ad-spend-engine';
-import GrowthTrajectoryChart from '@/components/GrowthTrajectoryChart';
+// GrowthTrajectoryChart shelved
 import type { BusinessProfile } from '@shared/business-profile';
 
 // ─── Props ───
@@ -1054,9 +1054,7 @@ export default function ConsultationReport({
               </div>
             </div>
 
-            <div className="rounded-xl border border-white/5 p-4 sm:p-6 bg-white/[0.01]">
-              <GrowthTrajectoryChart trajectory={trajectory} />
-            </div>
+            {/* GrowthTrajectoryChart shelved */}
           </div>
         </Section>
 

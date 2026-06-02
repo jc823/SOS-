@@ -30,13 +30,8 @@ import { Button } from '@/components/ui/button';
 import { getBandColor, getBandLabel, getProbabilityColor, getProbabilityLabel, PILLARS, type RevenueTier } from '@/lib/sos-engine';
 import { generateReportPDF } from '@/lib/generate-pdf';
 import { computeCostOfNotChanging, computeTrajectoryData } from '@/lib/cost-engine';
-import CostOfNotChangingSection from '@/components/CostOfNotChanging';
 import BusinessProfileSummary from '@/components/BusinessProfileSummary';
-import AdSpendROI from '@/components/AdSpendROI';
-import GrowthSimulator from '@/components/GrowthSimulator';
-import BattlePlan from '@/components/BattlePlan';
-import ScalePlaybook from '@/components/ScalePlaybook';
-import ProgressReview from '@/components/ProgressReview';
+// Shelved: CostOfNotChanging, AdSpendROI, GrowthSimulator, BattlePlan, ScalePlaybook, ProgressReview
 import { generateChangeIntelligence } from '@/lib/change-intelligence';
 
 import type { SOSResult, SubcategoryInput, ScalingProbability } from '@/lib/sos-engine';
@@ -681,29 +676,7 @@ export default function ReportView({ result, inputs, meta, probability, onBack, 
         {/* ═══════════════════════════════════════════════════
             SECTION 3: GROWTH SIMULATOR (merged Probability + What-If + Ad Spend)
         ═══════════════════════════════════════════════════ */}
-        <GrowthSimulator
-          inputs={inputs}
-          result={result}
-          probability={probability}
-          revenueTier={effectiveTier}
-          customTarget={customTarget}
-          onTierChange={onTierChange}
-          businessProfile={businessProfile}
-          animateIn={animateIn}
-        />
-
-
-        {/* ═══════════════════════════════════════════════════
-            SECTION 3.5: COST OF NOT CHANGING
-        ═══════════════════════════════════════════════════ */}
-        <CostOfNotChangingSection
-          cost={costOfNotChanging}
-          trajectory={trajectoryData}
-          animateIn={animateIn}
-          isCustomerView={isCustomerView}
-        />
-
-        {/* Ad Spend ROI now integrated into Growth Simulator above */}
+        {/* GrowthSimulator, CostOfNotChanging, AdSpendROI — shelved */}
 
         {/* ═══════════════════════════════════════════════════
             SECTION 4: STRENGTHS & CRITICAL GAPS
@@ -862,33 +835,7 @@ export default function ReportView({ result, inputs, meta, probability, onBack, 
         {/* ═══════════════════════════════════════════════════
             SECTION 6.7: 30-DAY BATTLE PLAN
         ═══════════════════════════════════════════════════ */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={animateIn ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.6, delay: 0.44 }}>
-          <BattlePlan
-            inputs={inputs}
-            overallPercentage={result.percentage}
-            scalingProbability={probability.overall}
-            shopName={meta.shopName}
-            revenueTier={effectiveTier}
-            currentRevenue={currentRevenue}
-            goalRevenue={goalRevenue}
-            businessProfile={businessProfile}
-          />
-        </motion.div>
-
-        {/* ═══════════════════════════════════════════════════
-            SECTION 6.8: SCALE'S PLAYBOOK (AI)
-        ═══════════════════════════════════════════════════ */}
-        {!isCustomerView && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={animateIn ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.6, delay: 0.445 }}>
-            <ScalePlaybook
-              scores={inputs}
-              revenueTier={effectiveTier}
-              overallPercentage={result.percentage}
-              scalingProbability={probability.overall}
-              shopName={meta.shopName}
-            />
-          </motion.div>
-        )}
+        {/* BattlePlan, ScalePlaybook — shelved */}
 
         {/* ═══════════════════════════════════════════════════
             SECTION 7: SCORE DISTRIBUTION
@@ -1043,7 +990,7 @@ export default function ReportView({ result, inputs, meta, probability, onBack, 
             className="relative rounded-2xl border border-gold/10 bg-card/50 p-6 sm:p-8"
           >
             <CornerBrackets />
-            <ProgressReview report={changeReport} isCustomerView={isCustomerView} />
+            {/* ProgressReview shelved */}
           </motion.div>
         )}
 

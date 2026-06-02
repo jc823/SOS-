@@ -10,7 +10,7 @@ import { getBandColor, getBandLabel } from '@/lib/sos-engine';
 import type { PillarDef, PillarResult, SubcategoryInput } from '@/lib/sos-engine';
 import type { BusinessProfile } from '@shared/business-profile';
 import ScoreInput from './ScoreInput';
-import PillarProfileFields from './PillarProfileFields';
+// PillarProfileFields shelved
 
 const ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   Wrench, Phone, Megaphone, Users,
@@ -111,16 +111,7 @@ export default function PillarCard({
             className="overflow-hidden"
           >
             <div className="border-t border-white/[0.06] px-3 sm:px-5 py-4 space-y-3">
-              {/* Inline business profile fields for this pillar */}
-              {hasProfileFields && (
-                <div className="mb-2">
-                  <PillarProfileFields
-                    pillarId={pillar.id}
-                    profile={businessProfile!}
-                    onChange={onBusinessProfileChange!}
-                  />
-                </div>
-              )}
+              {/* PillarProfileFields shelved */}
 
               {/* Subcategory scoring inputs */}
               {pillar.subcategories.map((sub) => (

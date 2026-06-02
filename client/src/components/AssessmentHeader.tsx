@@ -5,7 +5,7 @@
  * The shop name input has been replaced with a slot for the ShopSelector dropdown.
  */
 import { ReactNode } from 'react';
-import ShopLogoUpload from './ShopLogoUpload';
+// ShopLogoUpload shelved
 
 interface AssessmentMeta {
   shopName: string;
@@ -111,14 +111,7 @@ export default function AssessmentHeader({ meta, onChange, customerLogoUrl, onLo
           />
         </div>
 
-        {/* Customer Logo Upload */}
-        <div>
-          <ShopLogoUpload
-            shopName={meta.shopName}
-            currentLogoUrl={customerLogoUrl}
-            onLogoChange={onLogoChange}
-          />
-        </div>
+        {/* Logo upload shelved */}
       </div>
 
       {/* Overall notes */}
