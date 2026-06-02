@@ -9,6 +9,7 @@ import { sdk } from "./sdk";
 import { ENV } from "./env";
 import { COOKIE_NAME } from "../../shared/const";
 import * as db from "../db";
+import bcrypt from "bcryptjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -54,9 +55,33 @@ if (isProd) {
   });
 }
 
+// ─── Seed admin user on first boot ────────────────────────────────────────
+async function seedAdminUser() {
+  try {
+    const adminUsername = process.env.ADMIN_USERNAME ?? "admin";
+    const adminPassword = process.env.ADMIN_PASSWORD ?? "admin123";
+    const existing = await db.getUserByUsername(adminUsername);
+    if (!existing) {
+      const passwordHash = await bcrypt.hash(adminPassword, 12);
+      await db.createUserWithPassword({
+        username: adminUsername,
+        passwordHash,
+        name: "Admin",
+        role: "super_admin",
+      });
+      console.log(`[Seed] Admin user created — username: "${adminUsername}"`);
+    } else {
+      console.log(`[Seed] Admin user already exists — skipping`);
+    }
+  } catch (err) {
+    console.error("[Seed] Failed to seed admin user:", err);
+  }
+}
+
 app.listen(ENV.port, () => {
   console.log(`[Server] Running on http://localhost:${ENV.port}`);
   console.log(`[Server] Mode: ${ENV.nodeEnv}`);
+  seedAdminUser();
 });
 
 export { app };
