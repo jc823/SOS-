@@ -100,6 +100,43 @@ export const appRouter = router({
         return { success: true, user: { id: user.id, name: user.name, username: user.username, role: user.role } };
       }),
 
+    // Magic link: generate token, log URL (wire email service later)
+    sendMagicLink: publicProcedure
+      .input(z.object({ email: z.string().email() }))
+      .mutation(async ({ input }) => {
+        const user = await db.getUserByEmail(input.email);
+        if (!user) {
+          // Don't reveal whether email exists
+          return { success: true };
+        }
+        const token = crypto.randomBytes(32).toString('hex');
+        const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+        await db.setMagicLinkToken(user.id, token, expiry);
+        const link = `${process.env.APP_URL ?? 'http://localhost:5173'}/login?magic=${token}`;
+        console.log(`[MagicLink] Login link for ${input.email}: ${link}`);
+        // TODO: send link via email service (Resend, SendGrid, etc.)
+        return { success: true };
+      }),
+
+    // Magic link: verify token, create session
+    verifyMagicLink: publicProcedure
+      .input(z.object({ token: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const user = await db.getUserByMagicToken(input.token);
+        if (!user || !user.magicLinkExpiry || new Date(user.magicLinkExpiry) < new Date()) {
+          throw new Error('Invalid or expired magic link');
+        }
+        await db.clearMagicLinkToken(user.id);
+        await db.upsertUser({ openId: user.openId, lastSignedIn: new Date() });
+        const sessionToken = await sdk.createSessionToken(user.openId, {
+          name: user.name || user.username || '',
+          expiresInMs: ONE_YEAR_MS,
+        });
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+        return { success: true, user: { id: user.id, name: user.name, role: user.role } };
+      }),
+
     // Validate invite code (public — for the register form)
     validateInvite: publicProcedure
       .input(z.object({ code: z.string() }))
@@ -2034,6 +2071,64 @@ Be realistic and specific to this exact market. Use your knowledge of US demogra
         return db.getLeadsStats();
       }),
   }),
+
+  // ─── Portal (customer-facing) ─────────────────────────────────────────────
+  portal: router({
+    // Returns shop data + assessment history for the logged-in customer's shop.
+    // Data isolation: always filters by user.shopId — never returns other shops.
+    myData: protectedProcedure.query(async ({ ctx }) => {
+      const user = ctx.user;
+      if (!user.shopId) {
+        return { shop: null, latestAssessment: null, history: [] };
+      }
+      return db.getPortalData(user.shopId);
+    }),
+  }),
+
+  // ─── Admin Panel (super_admin only) ──────────────────────────────────────
+  admin: router({
+    listAllShops: superAdminProcedure.query(async () => {
+      return db.getShopsWithLatestAssessment();
+    }),
+
+    listAllUsers: superAdminProcedure.query(async () => {
+      return db.getAllUsers();
+    }),
+
+    updateUserRole: superAdminProcedure
+      .input(z.object({
+        userId: z.number(),
+        role: z.enum(['user', 'admin', 'super_admin', 'customer']),
+      }))
+      .mutation(async ({ input }) => {
+        await db.updateUserRole(input.userId, input.role);
+        return { success: true };
+      }),
+
+    assignShopToUser: superAdminProcedure
+      .input(z.object({
+        userId: z.number(),
+        shopId: z.number().nullable(),
+      }))
+      .mutation(async ({ input }) => {
+        await db.assignShopToUser(input.userId, input.shopId);
+        return { success: true };
+      }),
+
+    unlockShopResults: superAdminProcedure
+      .input(z.object({
+        shopId: z.number(),
+        unlocked: z.boolean(),
+      }))
+      .mutation(async ({ input }) => {
+        await db.updateShopResultsUnlocked(input.shopId, input.unlocked);
+        return { success: true };
+      }),
+  }),
+
+  // ─── Magic Link Auth ──────────────────────────────────────────────────────
+  // sendMagicLink: stores a token and logs the link (wire up email later).
+  // verifyMagicLink: validates token, creates session, clears token.
 });
 
 export type AppRouter = typeof appRouter;

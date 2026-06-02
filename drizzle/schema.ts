@@ -16,6 +16,8 @@ export const users = sqliteTable("users", {
   loginMethod: text("loginMethod"),
   role: text("role", { enum: ["user", "admin", "super_admin", "customer"] }).default("user").notNull(),
   shopId: integer("shopId"),
+  magicLinkToken: text("magicLinkToken"),
+  magicLinkExpiry: integer("magicLinkExpiry", { mode: "timestamp" }),
   createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
   lastSignedIn: integer("lastSignedIn", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
@@ -51,6 +53,7 @@ export const shops = sqliteTable("shops", {
   notes: text("notes"),
   logoUrl: text("logoUrl"),
   createdById: integer("createdById").notNull(),
+  resultsUnlocked: integer("resultsUnlocked", { mode: "boolean" }).default(false).notNull(),
   createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
 });
