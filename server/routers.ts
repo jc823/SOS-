@@ -2140,6 +2140,23 @@ Be realistic and specific to this exact market. Use your knowledge of US demogra
       const recentPatterns = await db.getLatestAlgorithmAdjustments(10);
       return { highRiskShops, recentPatterns };
     }),
+
+    // ── Settings ──
+    getSettings: superAdminProcedure.query(async () => {
+      return db.getAllSettings();
+    }),
+
+    updateSetting: superAdminProcedure
+      .input(z.object({ key: z.string(), value: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        await db.updateSetting(input.key, input.value, ctx.user.id);
+        return { success: true };
+      }),
+
+    // ── Stats overview ──
+    getStats: superAdminProcedure.query(async () => {
+      return db.getPredictionStats();
+    }),
   }),
 
   // ─── AI Assistant ─────────────────────────────────────────────────────────

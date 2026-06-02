@@ -81,57 +81,6 @@ const TOOLS: ToolCard[] = [
     requiredRole: 'super_admin',
   },
 
-  // ── Coming soon ─────────────────────────────────────────────────────────────
-  {
-    id: 'seo',
-    title: 'SEO Audit',
-    subtitle: 'Coming Soon',
-    description: 'Full site crawl with page-by-page scoring, local SEO checklist, and keyword presence analysis.',
-    icon: <Search size={22} />,
-    href: '#',
-    accentColor: 'muted',
-    available: false,
-  },
-  {
-    id: 'onboarding',
-    title: 'Onboarding',
-    subtitle: 'Coming Soon',
-    description: 'Assign 30/60/90 day onboarding plans to new clients. Track checklist completion and hold shops accountable.',
-    icon: <ClipboardList size={22} />,
-    href: '#',
-    accentColor: 'muted',
-    available: false,
-  },
-  {
-    id: 'directory',
-    title: 'Trusted Directory',
-    subtitle: 'Coming Soon',
-    description: 'Gated directory of trusted vendors, suppliers, and installers. Managed by Scale, accessible to approved clients.',
-    icon: <Users size={22} />,
-    href: '#',
-    accentColor: 'muted',
-    available: false,
-  },
-  {
-    id: 'social',
-    title: 'Social Media Audit',
-    subtitle: 'Coming Soon',
-    description: 'Analyze a shop\'s social media presence — posting frequency, engagement, content quality, and platform coverage.',
-    icon: <Globe size={22} />,
-    href: '#',
-    accentColor: 'muted',
-    available: false,
-  },
-  {
-    id: 'competitor',
-    title: 'Competitor Analysis',
-    subtitle: 'Coming Soon',
-    description: 'Compare a shop against local competitors — pricing, services, online presence, and market positioning.',
-    icon: <TrendingUp size={22} />,
-    href: '#',
-    accentColor: 'muted',
-    available: false,
-  },
 ];
 
 function getAccentClasses(accent: string) {

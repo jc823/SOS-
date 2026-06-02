@@ -16,6 +16,7 @@ import {
   directoryEntries, InsertDirectoryEntry, DirectoryEntry,
   leads, InsertLead, Lead,
   selfAssessments, InsertSelfAssessment,
+  settings, Setting,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1101,4 +1102,52 @@ export async function getHighRiskAssessments() {
   }
 
   return result;
+}
+
+// ─── System Settings ─────────────────────────────────────────────────────────
+
+
+const DEFAULT_SETTINGS: Array<{ key: string; value: string; label: string; description: string; category: string }> = [
+  { key: "quiz_enabled",            value: "true",  label: "Public Quiz",           description: "Allow anyone to access /quiz without logging in",           category: "features" },
+  { key: "portal_enabled",          value: "true",  label: "Customer Portal",       description: "Allow customers to log in and view their portal",           category: "features" },
+  { key: "ai_assistant_enabled",    value: "true",  label: "AI Coach",              description: "Show the AI coaching assistant in the customer portal",     category: "features" },
+  { key: "registrations_enabled",   value: "true",  label: "New Registrations",     description: "Allow new accounts to be created via invite codes",         category: "features" },
+  { key: "maintenance_mode",        value: "false", label: "Maintenance Mode",      description: "Show a maintenance page to all non-admin users",           category: "system"   },
+  { key: "results_locked_default",  value: "true",  label: "Lock Results by Default", description: "New shops have results locked until manually unlocked",  category: "features" },
+  { key: "app_name",                value: "SOS Scorecard", label: "App Name",     description: "Display name shown throughout the app",                     category: "branding" },
+  { key: "support_email",           value: "",      label: "Support Email",         description: "Email shown to customers when they need help",             category: "branding" },
+];
+
+export async function getAllSettings(): Promise<Setting[]> {
+  const db = await getDb();
+  if (!db) return [];
+  // Seed defaults if empty
+  const existing = await db.select().from(settings);
+  if (existing.length === 0) {
+    for (const s of DEFAULT_SETTINGS) {
+      await db.insert(settings).values(s).onConflictDoNothing();
+    }
+    return db.select().from(settings).orderBy(settings.category, settings.key);
+  }
+  // Upsert any missing defaults
+  for (const s of DEFAULT_SETTINGS) {
+    const found = existing.find(e => e.key === s.key);
+    if (!found) await db.insert(settings).values(s).onConflictDoNothing();
+  }
+  return db.select().from(settings).orderBy(settings.category, settings.key);
+}
+
+export async function getSetting(key: string): Promise<string | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(settings).where(eq(settings.key, key)).limit(1);
+  return rows[0]?.value ?? null;
+}
+
+export async function updateSetting(key: string, value: string, updatedById?: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(settings)
+    .set({ value, updatedById: updatedById ?? null, updatedAt: new Date() })
+    .where(eq(settings.key, key));
 }
