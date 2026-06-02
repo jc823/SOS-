@@ -964,6 +964,12 @@ export async function updateAdminPassword(userId: number, passwordHash: string):
   await db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, userId));
 }
 
+export async function deleteUser(userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(users).where(eq(users.id, userId));
+}
+
 export async function updateUserRole(userId: number, role: 'user' | 'admin' | 'super_admin' | 'customer'): Promise<void> {
   const db = await getDb();
   if (!db) return;

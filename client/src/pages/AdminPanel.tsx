@@ -33,6 +33,16 @@ export default function AdminPanel() {
   const [newExpiry, setNewExpiry] = useState("30");
   const [copied, setCopied]     = useState<string | null>(null);
 
+  // Create user state
+  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [cuName, setCuName]       = useState("");
+  const [cuEmail, setCuEmail]     = useState("");
+  const [cuUsername, setCuUsername] = useState("");
+  const [cuPassword, setCuPassword] = useState("");
+  const [cuRole, setCuRole]       = useState<UserRole>("customer");
+  const [cuShopId, setCuShopId]   = useState("");
+  const [cuError, setCuError]     = useState("");
+
   const canQuery = !loading && user?.role === "super_admin";
 
   const usersQuery    = trpc.admin.listAllUsers.useQuery(undefined,    { enabled: canQuery });
@@ -49,6 +59,15 @@ export default function AdminPanel() {
   const deleteInvite   = trpc.invites.delete.useMutation({ onSuccess: () => invitesQuery.refetch() });
   const runLearning    = trpc.admin.runLearningAnalysis.useMutation({ onSuccess: () => aiInsightsQuery.refetch() });
   const updateSetting  = trpc.admin.updateSetting.useMutation({ onSuccess: () => settingsQuery.refetch() });
+  const createUser     = trpc.admin.createUser.useMutation({
+    onSuccess: () => {
+      usersQuery.refetch();
+      setShowCreateUser(false);
+      setCuName(""); setCuEmail(""); setCuUsername(""); setCuPassword(""); setCuRole("customer"); setCuShopId(""); setCuError("");
+    },
+    onError: (err) => setCuError(err.message),
+  });
+  const deleteUser = trpc.admin.deleteUser.useMutation({ onSuccess: () => usersQuery.refetch() });
 
   if (loading) {
     return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><Loader2 size={24} className="animate-spin text-gold" /></div>;
@@ -196,12 +215,77 @@ export default function AdminPanel() {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-xl font-black mb-1">User Management</h1>
-                <p className="text-sm text-muted-foreground">Control roles, shop assignments, and access for all accounts.</p>
+                <p className="text-sm text-muted-foreground">Add users directly — no invite codes needed.</p>
               </div>
-              {usersQuery.isLoading && <Loader2 size={16} className="animate-spin text-muted-foreground" />}
+              <Button
+                onClick={() => setShowCreateUser(v => !v)}
+                className="bg-gold text-black font-bold hover:bg-gold/90 h-9 px-4 text-xs gap-1.5"
+              >
+                <Plus size={13} /> Add User
+              </Button>
             </div>
 
+            {/* Create user form */}
+            {showCreateUser && (
+              <div className="bg-white/[0.03] border border-gold/20 rounded-xl p-6">
+                <h2 className="text-sm font-bold mb-4">Create New User</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 block">Full Name *</Label>
+                    <Input value={cuName} onChange={e => setCuName(e.target.value)} placeholder="Jane Smith" className="bg-white/5 border-white/10 text-white h-10" />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 block">Email</Label>
+                    <Input type="email" value={cuEmail} onChange={e => setCuEmail(e.target.value)} placeholder="jane@shop.com" className="bg-white/5 border-white/10 text-white h-10" />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 block">Username *</Label>
+                    <Input value={cuUsername} onChange={e => setCuUsername(e.target.value)} placeholder="janesmith" className="bg-white/5 border-white/10 text-white h-10" />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 block">Password *</Label>
+                    <Input type="text" value={cuPassword} onChange={e => setCuPassword(e.target.value)} placeholder="Min 6 characters" className="bg-white/5 border-white/10 text-white h-10" />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 block">Role</Label>
+                    <select value={cuRole} onChange={e => setCuRole(e.target.value as UserRole)}
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gold/50 h-10">
+                      <option value="customer">customer</option>
+                      <option value="user">user</option>
+                      <option value="admin">admin</option>
+                      <option value="super_admin">super_admin</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 block">Assign Shop (optional)</Label>
+                    <select value={cuShopId} onChange={e => setCuShopId(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gold/50 h-10">
+                      <option value="">— No shop yet —</option>
+                      {allShops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+                {cuError && <p className="text-xs text-red-400 mb-3">{cuError}</p>}
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => {
+                      setCuError("");
+                      if (!cuName || !cuUsername || !cuPassword) { setCuError("Name, username and password are required"); return; }
+                      createUser.mutate({ name: cuName, email: cuEmail || undefined, username: cuUsername, password: cuPassword, role: cuRole, shopId: cuShopId ? Number(cuShopId) : undefined });
+                    }}
+                    disabled={createUser.isPending}
+                    className="bg-gold text-black font-bold hover:bg-gold/90 h-9 px-5 text-xs"
+                  >
+                    {createUser.isPending ? <><Loader2 size={12} className="animate-spin mr-1.5" /> Creating…</> : "Create User"}
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowCreateUser(false)} className="h-9 px-5 text-xs border-white/10">Cancel</Button>
+                </div>
+              </div>
+            )}
+
+            {/* Users table */}
             <div className="bg-white/[0.03] border border-white/8 rounded-xl overflow-hidden">
+              {usersQuery.isLoading && <div className="px-6 py-4 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={14} className="animate-spin" /> Loading…</div>}
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -210,7 +294,7 @@ export default function AdminPanel() {
                       <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Role</th>
                       <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Assigned Shop</th>
                       <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Joined</th>
-                      <th className="px-4 py-3 w-12" />
+                      <th className="px-4 py-3 w-16" />
                     </tr>
                   </thead>
                   <tbody>
@@ -253,12 +337,22 @@ export default function AdminPanel() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          {u.id === user.id && <span className="text-[10px] text-gold/60 font-medium">You</span>}
+                          {u.id === user.id
+                            ? <span className="text-[10px] text-gold/60 font-medium">You</span>
+                            : <button
+                                onClick={() => { if (confirm(`Delete ${u.name || u.username}?`)) deleteUser.mutate({ userId: u.id }); }}
+                                disabled={deleteUser.isPending}
+                                className="text-muted-foreground hover:text-red-400 transition-colors disabled:opacity-40"
+                                title="Delete user"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                          }
                         </td>
                       </tr>
                     ))}
                     {allUsers.length === 0 && !usersQuery.isLoading && (
-                      <tr><td colSpan={5} className="px-6 py-10 text-center text-sm text-muted-foreground">No users found</td></tr>
+                      <tr><td colSpan={5} className="px-6 py-10 text-center text-sm text-muted-foreground">No users yet — add one above.</td></tr>
                     )}
                   </tbody>
                 </table>
