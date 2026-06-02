@@ -9,10 +9,10 @@ import { getLoginUrl } from '@/const';
 import { trpc } from '@/lib/trpc';
 import { motion } from 'framer-motion';
 import {
-  ClipboardCheck, Search, LayoutDashboard, Users, BarChart3,
-  LogOut, ArrowRight, Shield, Zap, Target, Globe, TrendingUp,
-  Loader2, Lock, HeartPulse, FileStack, ClipboardList, PieChart, Activity,
-  ChevronRight, UserPlus, ExternalLink,
+  ClipboardCheck, LayoutDashboard,
+  LogOut, ArrowRight, Shield, Zap,
+  Loader2, Lock, ClipboardList,
+  ChevronRight, ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -27,14 +27,28 @@ interface ToolCard {
   accentColor: string;
   available: boolean;
   stats?: string;
-  /** If set, only users with this role (or super_admin) can see the card */
   requiredRole?: 'super_admin';
-  /** If true, card is hidden from the Hub grid (tool still exists at its route) */
   hiddenFromHub?: boolean;
+  /** If true, requires a Pro subscription to access */
+  requiresPro?: boolean;
 }
 
 const TOOLS: ToolCard[] = [
-  // ── Live tools ──────────────────────────────────────────────────────────────
+  // ── Free ────────────────────────────────────────────────────────────────────
+  {
+    id: 'quiz',
+    title: 'SOS Quiz',
+    subtitle: 'Free Assessment',
+    description: 'Public-facing quiz for potential clients. 8 questions, lead gate, instant score with revenue gap estimate. No login required.',
+    icon: <ExternalLink size={22} />,
+    href: '/quiz',
+    accentColor: 'emerald',
+    available: true,
+    stats: 'Free · No Login · Lead Capture',
+    requiresPro: false,
+  },
+
+  // ── Pro ─────────────────────────────────────────────────────────────────────
   {
     id: 'sos',
     title: 'SOS Assessment',
@@ -45,6 +59,7 @@ const TOOLS: ToolCard[] = [
     accentColor: 'gold',
     available: true,
     stats: '30 subcategories · 4 pillars',
+    requiresPro: true,
   },
   {
     id: 'dashboard',
@@ -56,18 +71,10 @@ const TOOLS: ToolCard[] = [
     accentColor: 'blue',
     available: true,
     stats: 'History · Compare · Timeline',
+    requiresPro: true,
   },
-  {
-    id: 'quiz',
-    title: 'SOS Quiz',
-    subtitle: 'Public Lead Magnet',
-    description: 'Public-facing quiz for potential clients. 8 questions, lead gate, instant score with revenue gap estimate. No login required.',
-    icon: <ExternalLink size={22} />,
-    href: '/quiz',
-    accentColor: 'emerald',
-    available: true,
-    stats: 'Public · No Login · Lead Capture',
-  },
+
+  // ── Super admin ─────────────────────────────────────────────────────────────
   {
     id: 'admin',
     title: 'Admin Panel',
@@ -80,7 +87,6 @@ const TOOLS: ToolCard[] = [
     stats: 'Users · Shops · Invites · Access',
     requiredRole: 'super_admin',
   },
-
 ];
 
 function getAccentClasses(accent: string) {
@@ -264,16 +270,38 @@ export default function Hub() {
           </div>
         </motion.div>
 
-        {/* Tool Grid — glass cards with left accent on hover */}
+        {/* Upgrade banner for free users */}
+        {user?.subscriptionStatus === 'free' && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 flex items-center justify-between gap-4 bg-gold/5 border border-gold/20 rounded-xl px-5 py-3.5"
+          >
+            <div className="flex items-center gap-2 text-sm">
+              <Zap size={14} className="text-gold shrink-0" />
+              <span className="text-white/80">You're on the <strong className="text-white">Free</strong> plan — upgrade to unlock the full Scale Toolkit.</span>
+            </div>
+            <Button
+              onClick={() => navigate('/pricing')}
+              className="shrink-0 h-8 px-4 bg-gold text-black font-bold hover:bg-gold/90 text-xs"
+            >
+              Upgrade to Pro <ArrowRight size={12} className="ml-1" />
+            </Button>
+          </motion.div>
+        )}
+
+        {/* Tool Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {TOOLS.filter(tool => {
-            // Hide tools marked as hidden from Hub
             if (tool.hiddenFromHub) return false;
-            // Role-gated tools: super_admin only
             if (tool.requiredRole === 'super_admin' && user?.role !== 'super_admin') return false;
             return true;
           }).map((tool, i) => {
             const accent = getAccentClasses(tool.accentColor);
+            const isFreeUser = !user?.subscriptionStatus || user.subscriptionStatus === 'free';
+            const isAdminUser = user?.role === 'super_admin' || user?.role === 'admin';
+            const isLocked = tool.requiresPro && isFreeUser && !isAdminUser;
+
             return (
               <motion.div
                 key={tool.id}
@@ -281,25 +309,46 @@ export default function Hub() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.05 + i * 0.025, duration: 0.35 }}
               >
-                {tool.available ? (
+                {isLocked ? (
+                  /* Locked — Pro required */
+                  <div
+                    onClick={() => navigate('/pricing')}
+                    className="relative glass-card p-5 cursor-pointer h-full border border-white/5 hover:border-gold/20 transition-all group"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="w-10 h-10 rounded-lg bg-white/[0.02] border border-white/[0.04] flex items-center justify-center text-muted-foreground/30">
+                        {tool.icon}
+                      </div>
+                      <div className="flex items-center gap-1 mt-1">
+                        <span className="text-[9px] text-gold/50 uppercase tracking-widest font-bold">Pro</span>
+                        <Lock size={11} className="text-gold/40" />
+                      </div>
+                    </div>
+                    <h3 className="text-sm font-semibold text-foreground/40 mb-0.5 tracking-wide uppercase" style={{ fontFamily: "'Bebas Neue', Impact, sans-serif", fontSize: '1.05rem', letterSpacing: '0.04em' }}>
+                      {tool.title}
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground/40 font-medium mb-2">{tool.subtitle}</p>
+                    <p className="text-xs text-muted-foreground/30 leading-relaxed mb-3">{tool.description}</p>
+                    <p className="text-[10px] text-gold/40 group-hover:text-gold transition-colors font-semibold flex items-center gap-1">
+                      Upgrade to Pro <ArrowRight size={10} />
+                    </p>
+                  </div>
+                ) : tool.available ? (
+                  /* Available */
                   <Link href={tool.href}>
                     <div className={`group relative glass-card glass-card-hover p-5 cursor-pointer transition-all duration-200 ${accent.border} ${accent.glow} hover:shadow-lg h-full`}>
-                      {/* Left accent stripe on hover */}
                       <div className={`absolute left-0 top-3 bottom-3 w-[3px] rounded-full bg-gold opacity-0 group-hover:opacity-100 transition-opacity duration-200`} />
-
                       <div className="flex items-start justify-between mb-3">
                         <div className={`w-10 h-10 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-center justify-center ${accent.icon}`}>
                           {tool.icon}
                         </div>
                         <ChevronRight size={14} className="text-muted-foreground/20 group-hover:text-gold group-hover:translate-x-0.5 transition-all mt-1" />
                       </div>
-
                       <h3 className="text-sm font-semibold text-foreground mb-0.5 tracking-wide uppercase" style={{ fontFamily: "'Bebas Neue', Impact, sans-serif", fontSize: '1.05rem', letterSpacing: '0.04em' }}>
                         {tool.title}
                       </h3>
                       <p className="text-[11px] text-gold font-medium mb-2">{tool.subtitle}</p>
                       <p className="text-xs text-muted-foreground leading-relaxed mb-3">{tool.description}</p>
-
                       {tool.stats && (
                         <div className="flex items-center gap-1">
                           <div className="h-[2px] w-3 bg-gold/40 rounded-full" />
@@ -309,6 +358,7 @@ export default function Hub() {
                     </div>
                   </Link>
                 ) : (
+                  /* Coming soon */
                   <div className="relative glass-card p-5 opacity-40 h-full">
                     <div className="flex items-start justify-between mb-3">
                       <div className="w-10 h-10 rounded-lg bg-white/[0.02] border border-white/[0.04] flex items-center justify-center text-muted-foreground/40">

@@ -14,4 +14,6 @@ export const ENV = {
   salesArenaApiKey: process.env.SALES_ARENA_API_KEY ?? "",
   nodeEnv: process.env.NODE_ENV ?? "development",
   port: parseInt(process.env.PORT ?? "3001", 10),
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
 };
