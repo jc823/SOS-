@@ -956,6 +956,12 @@ export async function getAllUsers() {
   return db.select().from(users).orderBy(desc(users.createdAt));
 }
 
+export async function updateAdminPassword(userId: number, passwordHash: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, userId));
+}
+
 export async function updateUserRole(userId: number, role: 'user' | 'admin' | 'super_admin' | 'customer'): Promise<void> {
   const db = await getDb();
   if (!db) return;

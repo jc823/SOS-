@@ -55,14 +55,16 @@ if (isProd) {
   });
 }
 
-// ─── Seed admin user on first boot ────────────────────────────────────────
+// ─── Seed / sync admin user on every boot ─────────────────────────────────
+// Always ensures the admin user exists with the correct password.
+// Change credentials via ADMIN_USERNAME / ADMIN_PASSWORD env vars.
 async function seedAdminUser() {
   try {
     const adminUsername = process.env.ADMIN_USERNAME ?? "admin";
     const adminPassword = process.env.ADMIN_PASSWORD ?? "admin123";
+    const passwordHash = await bcrypt.hash(adminPassword, 12);
     const existing = await db.getUserByUsername(adminUsername);
     if (!existing) {
-      const passwordHash = await bcrypt.hash(adminPassword, 12);
       await db.createUserWithPassword({
         username: adminUsername,
         passwordHash,
@@ -71,7 +73,9 @@ async function seedAdminUser() {
       });
       console.log(`[Seed] Admin user created — username: "${adminUsername}"`);
     } else {
-      console.log(`[Seed] Admin user already exists — skipping`);
+      // Always sync the password so env var changes take effect on redeploy
+      await db.updateAdminPassword(existing.id, passwordHash);
+      console.log(`[Seed] Admin password synced — username: "${adminUsername}"`);
     }
   } catch (err) {
     console.error("[Seed] Failed to seed admin user:", err);
