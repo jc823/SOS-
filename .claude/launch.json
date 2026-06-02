@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sos-client",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "PATH=\"$HOME/.nvm/versions/node/v20.20.2/bin:$PATH\" pnpm dev:client"],
+      "port": 5174
+    }
+  ]
+}

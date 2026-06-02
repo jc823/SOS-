@@ -1,0 +1,362 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Typography */
+  --font-display: 'Bebas Neue', Impact, sans-serif;
+  --font-sans: 'Space Grotesk', system-ui, sans-serif;
+  --font-mono: 'Space Mono', monospace;
+
+  /* Scale Detailing brand tokens — gold primary */
+  --color-gold: oklch(0.76 0.12 75);
+  --color-gold-light: oklch(0.85 0.10 75);
+  --color-gold-dark: oklch(0.60 0.12 75);
+
+  /* Orange energy accent */
+  --color-orange: oklch(0.62 0.21 35);
+  --color-orange-light: oklch(0.72 0.18 35);
+  --color-orange-dark: oklch(0.52 0.21 35);
+
+  /* Severity bands */
+  --color-band-green: oklch(0.72 0.17 155);
+  --color-band-yellow: oklch(0.80 0.14 80);
+  --color-band-red: oklch(0.62 0.22 25);
+
+  /* Metallic tier gradients */
+  --color-bronze: oklch(0.60 0.10 55);
+  --color-silver: oklch(0.75 0.01 260);
+  --color-gold-tier: oklch(0.80 0.12 80);
+}
+
+:root {
+  --radius: 0.5rem;
+  /* Dark automotive base — #0D0D0D */
+  --background: oklch(0.10 0.005 285);
+  --foreground: oklch(0.95 0.005 65);
+  /* Card surfaces — slightly lighter */
+  --card: oklch(0.14 0.006 285);
+  --card-foreground: oklch(0.95 0.005 65);
+  --popover: oklch(0.14 0.006 285);
+  --popover-foreground: oklch(0.95 0.005 65);
+  /* Primary = gold */
+  --primary: oklch(0.76 0.12 75);
+  --primary-foreground: oklch(0.10 0.005 285);
+  /* Secondary surface */
+  --secondary: oklch(0.18 0.006 285);
+  --secondary-foreground: oklch(0.88 0.005 65);
+  /* Muted */
+  --muted: oklch(0.18 0.006 285);
+  --muted-foreground: oklch(0.60 0.01 285);
+  /* Accent */
+  --accent: oklch(0.18 0.006 285);
+  --accent-foreground: oklch(0.95 0.005 65);
+  /* Destructive */
+  --destructive: oklch(0.62 0.22 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  /* Borders — 10% white, very subtle */
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(0.18 0.006 285);
+  --ring: oklch(0.76 0.12 75);
+  /* Charts */
+  --chart-1: oklch(0.76 0.12 75);
+  --chart-2: oklch(0.72 0.17 155);
+  --chart-3: oklch(0.62 0.21 35);
+  --chart-4: oklch(0.62 0.22 25);
+  --chart-5: oklch(0.65 0.10 260);
+  /* Sidebar */
+  --sidebar: oklch(0.10 0.005 285);
+  --sidebar-foreground: oklch(0.95 0.005 65);
+  --sidebar-primary: oklch(0.76 0.12 75);
+  --sidebar-primary-foreground: oklch(0.10 0.005 285);
+  --sidebar-accent: oklch(0.18 0.006 285);
+  --sidebar-accent-foreground: oklch(0.95 0.005 65);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.76 0.12 75);
+}
+
+/* Light theme */
+.light {
+  --background: oklch(0.97 0.003 260);
+  --foreground: oklch(0.15 0.01 260);
+  --card: oklch(1.00 0 0);
+  --card-foreground: oklch(0.15 0.01 260);
+  --popover: oklch(1.00 0 0);
+  --popover-foreground: oklch(0.15 0.01 260);
+  --primary: oklch(0.68 0.14 75);
+  --primary-foreground: oklch(1.00 0 0);
+  --secondary: oklch(0.93 0.005 260);
+  --secondary-foreground: oklch(0.25 0.01 260);
+  --muted: oklch(0.93 0.005 260);
+  --muted-foreground: oklch(0.48 0.02 260);
+  --accent: oklch(0.93 0.005 260);
+  --accent-foreground: oklch(0.15 0.01 260);
+  --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(1.00 0 0);
+  --border: oklch(0.88 0.008 260);
+  --input: oklch(0.93 0.005 260);
+  --ring: oklch(0.68 0.14 75);
+  --chart-1: oklch(0.68 0.14 75);
+  --chart-2: oklch(0.55 0.17 155);
+  --chart-3: oklch(0.55 0.21 35);
+  --chart-4: oklch(0.55 0.22 25);
+  --chart-5: oklch(0.50 0.10 260);
+  --sidebar: oklch(0.96 0.003 260);
+  --sidebar-foreground: oklch(0.15 0.01 260);
+  --sidebar-primary: oklch(0.68 0.14 75);
+  --sidebar-primary-foreground: oklch(1.00 0 0);
+  --sidebar-accent: oklch(0.93 0.005 260);
+  --sidebar-accent-foreground: oklch(0.15 0.01 260);
+  --sidebar-border: oklch(0.88 0.008 260);
+  --sidebar-ring: oklch(0.68 0.14 75);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [type="button"]:not(:disabled),
+  [type="submit"]:not(:disabled),
+  [type="reset"]:not(:disabled),
+  a[href],
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled) {
+    @apply cursor-pointer;
+  }
+
+  /* Bebas Neue display headings */
+  h1, h2, .display-heading {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+}
+
+@layer components {
+  .container {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .flex {
+    min-height: 0;
+    min-width: 0;
+  }
+
+  @media (min-width: 640px) {
+    .container {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container {
+      padding-left: 2rem;
+      padding-right: 2rem;
+      max-width: 1280px;
+    }
+  }
+
+  /* ─── Design System Utilities ─── */
+
+  /* Orange left-edge accent stripe — signature visual motif */
+  .accent-stripe {
+    border-left: 4px solid oklch(0.76 0.12 75);
+    padding-left: 1rem;
+  }
+
+  .accent-stripe-orange {
+    border-left: 4px solid oklch(0.62 0.21 35);
+    padding-left: 1rem;
+  }
+
+  /* Glass-like card surfaces */
+  .glass-card {
+    background: oklch(1 0 0 / 3%);
+    border: 1px solid oklch(1 0 0 / 8%);
+    border-radius: 0.75rem;
+  }
+
+  .glass-card-hover:hover {
+    background: oklch(1 0 0 / 5%);
+    border-color: oklch(1 0 0 / 12%);
+  }
+
+  /* Thin orange progress bars (3px height) */
+  .progress-bar-thin {
+    height: 3px;
+    border-radius: 2px;
+    background: oklch(0.18 0.006 285);
+    overflow: hidden;
+  }
+
+  .progress-bar-thin > .fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+
+  /* Monospaced financial figures */
+  .font-data {
+    font-family: 'Space Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Metallic tier text gradients */
+  .text-bronze {
+    background: linear-gradient(135deg, #cd7f32, #a0522d);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-silver {
+    background: linear-gradient(135deg, #c0c0c0, #808080);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gold-gradient {
+    background: linear-gradient(135deg, #ffd700, #b8860b);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Section heading with left accent */
+  .section-heading {
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border-left: 4px solid oklch(0.76 0.12 75);
+    padding-left: 0.75rem;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: oklch(0.10 0.005 285);
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(0.30 0.01 285);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.40 0.01 285);
+}
+.light ::-webkit-scrollbar-track {
+  background: oklch(0.96 0.003 260);
+}
+.light ::-webkit-scrollbar-thumb {
+  background: oklch(0.78 0.008 260);
+  border-radius: 3px;
+}
+.light ::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.68 0.01 260);
+}
+
+/* Glow effects */
+.glow-gold {
+  box-shadow: 0 0 20px oklch(0.76 0.12 75 / 0.2), 0 0 40px oklch(0.76 0.12 75 / 0.06);
+}
+.glow-orange {
+  box-shadow: 0 0 20px oklch(0.62 0.21 35 / 0.2), 0 0 40px oklch(0.62 0.21 35 / 0.06);
+}
+.glow-green {
+  box-shadow: 0 0 20px oklch(0.72 0.17 155 / 0.2), 0 0 40px oklch(0.72 0.17 155 / 0.05);
+}
+.glow-amber {
+  box-shadow: 0 0 20px oklch(0.80 0.14 80 / 0.2), 0 0 40px oklch(0.80 0.14 80 / 0.05);
+}
+.glow-red {
+  box-shadow: 0 0 20px oklch(0.62 0.22 25 / 0.25), 0 0 40px oklch(0.62 0.22 25 / 0.08);
+}
+
+/* Print styles for report */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print\:hidden {
+    display: none !important;
+  }
+  .print\:break-inside-avoid {
+    break-inside: avoid;
+  }
+  .print\:py-4 {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+  .print\:space-y-6 > * + * {
+    margin-top: 1.5rem;
+  }
+  .print\:pb-4 {
+    padding-bottom: 1rem;
+  }
+  .print\:text-lg {
+    font-size: 1.125rem;
+  }
+  .print\:h-8 {
+    height: 2rem;
+  }
+}
