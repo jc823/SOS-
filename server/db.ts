@@ -15,6 +15,7 @@ import {
   onboardingChecklists, InsertOnboardingChecklist, OnboardingChecklist,
   directoryEntries, InsertDirectoryEntry, DirectoryEntry,
   leads, InsertLead, Lead,
+  selfAssessments, InsertSelfAssessment,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1024,4 +1025,80 @@ export async function getPortalData(shopId: number) {
     latestAssessment: shopAssessments[0] ?? null,
     history: shopAssessments,
   };
+}
+
+// ─── Prediction Engine ────────────────────────────────────────────────────────
+
+export async function updateAssessmentPredictions(assessmentId: number, predictions: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(assessments).set({ predictions }).where(eq(assessments.id, assessmentId));
+}
+
+export async function getLatestAlgorithmAdjustments(limit = 10) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(algorithmAdjustments).orderBy(desc(algorithmAdjustments.createdAt)).limit(limit);
+}
+
+export async function getIndustryBenchmarks() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(industryBenchmarks).orderBy(industryBenchmarks.category, industryBenchmarks.metric);
+}
+
+export async function createSelfAssessment(data: InsertSelfAssessment): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(selfAssessments).values(data);
+  return Number(result.lastInsertRowid);
+}
+
+export async function getHighRiskAssessments() {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Fetch all assessments with non-null predictions, joined with shops
+  const rows = await db.select({
+    assessmentId: assessments.id,
+    shopId: assessments.shopId,
+    shopName: shops.name,
+    overallPercentage: assessments.overallPercentage,
+    assessmentDate: assessments.assessmentDate,
+    predictions: assessments.predictions,
+  })
+    .from(assessments)
+    .leftJoin(shops, eq(assessments.shopId, shops.id))
+    .where(sql`${assessments.predictions} IS NOT NULL`)
+    .orderBy(desc(assessments.createdAt));
+
+  // Get last assessment per shop, filter by riskScore.score > 0.55
+  const latestPerShop = new Map<number, typeof rows[0]>();
+  for (const row of rows) {
+    if (!latestPerShop.has(row.shopId)) {
+      latestPerShop.set(row.shopId, row);
+    }
+  }
+
+  const result: Array<{
+    assessmentId: number;
+    shopId: number;
+    shopName: string | null;
+    overallPercentage: number;
+    assessmentDate: string;
+    predictions: string | null;
+  }> = [];
+
+  for (const row of latestPerShop.values()) {
+    try {
+      const parsed = JSON.parse(row.predictions as string);
+      if (parsed?.riskScore?.score > 0.55) {
+        result.push(row);
+      }
+    } catch {
+      // skip rows with unparseable predictions
+    }
+  }
+
+  return result;
 }

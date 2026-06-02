@@ -49,13 +49,23 @@ app.use(
 app.get("/api/admin-status", async (_req, res) => {
   try {
     const adminUsername = process.env.ADMIN_USERNAME ?? "admin";
+    const adminPassword = process.env.ADMIN_PASSWORD ?? "admin123";
     const user = await db.getUserByUsername(adminUsername);
+    const hashLength = user?.passwordHash?.length ?? 0;
+    // Test bcrypt directly against the stored hash
+    let bcryptMatch = false;
+    if (user?.passwordHash) {
+      bcryptMatch = await bcrypt.compare(adminPassword, user.passwordHash);
+    }
     res.json({
       adminExists: !!user,
       adminUsername,
       hasPasswordHash: !!user?.passwordHash,
+      hashLength,
+      bcryptMatch,
       role: user?.role ?? null,
       dbUrl: (process.env.DATABASE_URL ?? "file:./local.db").replace(/\/\/.*@/, "//***@"),
+      adminPasswordEnvSet: !!process.env.ADMIN_PASSWORD,
     });
   } catch (err) {
     res.status(500).json({ error: String(err) });

@@ -9,10 +9,11 @@ import {
   Shield, Users, Store, LogOut, Loader2,
   ToggleLeft, ToggleRight, ChevronLeft, Link2,
   Plus, Trash2, CheckCircle2, Copy, Ticket,
+  Brain, AlertTriangle, RefreshCw, TrendingUp,
 } from "lucide-react";
 
 type UserRole = "user" | "admin" | "super_admin" | "customer";
-type Tab = "users" | "shops" | "invites";
+type Tab = "users" | "shops" | "invites" | "ai";
 
 const ROLE_COLORS: Record<string, string> = {
   super_admin: "text-gold",
@@ -36,13 +37,15 @@ export default function AdminPanel() {
 
   const usersQuery  = trpc.admin.listAllUsers.useQuery(undefined, { enabled: canQuery });
   const shopsQuery  = trpc.admin.listAllShops.useQuery(undefined, { enabled: canQuery });
-  const invitesQuery = trpc.invites.list.useQuery(undefined, { enabled: canQuery });
+  const invitesQuery    = trpc.invites.list.useQuery(undefined, { enabled: canQuery });
+  const aiInsightsQuery = trpc.admin.getAIInsights.useQuery(undefined, { enabled: canQuery && tab === "ai" });
 
-  const updateRole     = trpc.admin.updateUserRole.useMutation({ onSuccess: () => usersQuery.refetch() });
-  const assignShop     = trpc.admin.assignShopToUser.useMutation({ onSuccess: () => usersQuery.refetch() });
-  const unlockResults  = trpc.admin.unlockShopResults.useMutation({ onSuccess: () => shopsQuery.refetch() });
-  const createInvite   = trpc.invites.create.useMutation({ onSuccess: () => invitesQuery.refetch() });
-  const deleteInvite   = trpc.invites.delete.useMutation({ onSuccess: () => invitesQuery.refetch() });
+  const updateRole          = trpc.admin.updateUserRole.useMutation({ onSuccess: () => usersQuery.refetch() });
+  const assignShop          = trpc.admin.assignShopToUser.useMutation({ onSuccess: () => usersQuery.refetch() });
+  const unlockResults       = trpc.admin.unlockShopResults.useMutation({ onSuccess: () => shopsQuery.refetch() });
+  const createInvite        = trpc.invites.create.useMutation({ onSuccess: () => invitesQuery.refetch() });
+  const deleteInvite        = trpc.invites.delete.useMutation({ onSuccess: () => invitesQuery.refetch() });
+  const runLearning         = trpc.admin.runLearningAnalysis.useMutation({ onSuccess: () => aiInsightsQuery.refetch() });
 
   if (loading) {
     return (
@@ -78,10 +81,15 @@ export default function AdminPanel() {
     });
   }
 
+  const aiInsights   = aiInsightsQuery.data;
+  const highRisk     = aiInsights?.highRiskShops ?? [];
+  const patterns     = aiInsights?.recentPatterns ?? [];
+
   const TABS: { id: Tab; label: string; icon: React.ReactNode; count: number }[] = [
     { id: "users",   label: "Users",   icon: <Users size={14} />,  count: allUsers.length },
     { id: "shops",   label: "Shops",   icon: <Store size={14} />,  count: allShops.length },
     { id: "invites", label: "Invites", icon: <Ticket size={14} />, count: allInvites.length },
+    { id: "ai",      label: "AI Insights", icon: <Brain size={14} />, count: highRisk.length },
   ];
 
   return (
@@ -396,6 +404,138 @@ export default function AdminPanel() {
                     )}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* ── AI Insights Tab ── */}
+        {tab === "ai" && (
+          <div className="space-y-4">
+
+            {/* Run Learning Analysis */}
+            <div className="bg-white/[0.03] border border-white/8 rounded-2xl p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-sm font-bold mb-1 flex items-center gap-2">
+                    <Brain size={14} className="text-gold" /> Learning Engine
+                  </h2>
+                  <p className="text-xs text-muted-foreground max-w-lg">
+                    Analyzes all assessments with logged outcomes to find patterns — which score improvements correlate with real revenue growth. Results feed back into future predictions.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => runLearning.mutate()}
+                  disabled={runLearning.isPending}
+                  className="shrink-0 bg-gold text-black font-bold hover:bg-gold/90 h-9 px-4 text-xs"
+                >
+                  {runLearning.isPending
+                    ? <><Loader2 size={12} className="animate-spin mr-1.5" /> Analyzing…</>
+                    : <><RefreshCw size={12} className="mr-1.5" /> Run Analysis</>}
+                </Button>
+              </div>
+              {runLearning.isSuccess && (
+                <p className="text-xs text-green-400 mt-3 flex items-center gap-1.5">
+                  <CheckCircle2 size={12} /> Analysis complete — patterns saved.
+                </p>
+              )}
+            </div>
+
+            {/* High Risk Shops */}
+            <div className="bg-white/[0.03] border border-white/8 rounded-2xl overflow-hidden">
+              <div className="px-6 py-4 border-b border-white/8 flex items-center justify-between">
+                <h2 className="text-sm font-bold flex items-center gap-2">
+                  <AlertTriangle size={14} className="text-amber-400" />
+                  High-Risk Shops ({highRisk.length})
+                </h2>
+                {aiInsightsQuery.isLoading && <Loader2 size={14} className="animate-spin text-muted-foreground" />}
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/5 bg-white/[0.02]">
+                      <th className="text-left px-6 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Shop</th>
+                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Score</th>
+                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Risk</th>
+                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Rev Gap</th>
+                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Primary Risk Factor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {highRisk.map((item: any) => {
+                      let pred: any = null;
+                      try { pred = item.predictions ? JSON.parse(item.predictions) : null; } catch {}
+                      const riskLevel = pred?.riskScore?.level ?? "—";
+                      const riskScore = pred?.riskScore?.score ?? null;
+                      const riskFactor = pred?.riskScore?.primaryRiskFactor ?? "—";
+                      const revGap = pred?.revenueProjection
+                        ? (pred.revenueProjection.projectedIfAllFixed ?? 0) - (pred.revenueProjection.current ?? 0)
+                        : null;
+                      return (
+                        <tr key={item.assessmentId} className="border-b border-white/5 last:border-0 hover:bg-white/[0.015]">
+                          <td className="px-6 py-3">
+                            <div className="font-medium">{item.shopName}</div>
+                            <div className="text-[11px] text-muted-foreground">{item.assessmentDate}</div>
+                          </td>
+                          <td className="px-4 py-3 font-mono font-bold">{item.overallPercentage}%</td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs font-semibold ${
+                              riskLevel === "high" ? "text-red-400" :
+                              riskLevel === "medium" ? "text-amber-400" : "text-muted-foreground"
+                            }`}>
+                              {riskLevel} {riskScore != null ? `(${Math.round(riskScore * 100)}%)` : ""}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-mono">
+                            {revGap != null ? `$${revGap.toLocaleString()}/mo` : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground max-w-xs truncate">{riskFactor}</td>
+                        </tr>
+                      );
+                    })}
+                    {highRisk.length === 0 && !aiInsightsQuery.isLoading && (
+                      <tr><td colSpan={5} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                        No high-risk shops yet — predictions are generated automatically after each assessment.
+                      </td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Recent Pattern Findings */}
+            <div className="bg-white/[0.03] border border-white/8 rounded-2xl overflow-hidden">
+              <div className="px-6 py-4 border-b border-white/8">
+                <h2 className="text-sm font-bold flex items-center gap-2">
+                  <TrendingUp size={14} className="text-gold" />
+                  Recent Pattern Findings ({patterns.length})
+                </h2>
+              </div>
+              <div className="divide-y divide-white/5">
+                {patterns.map((p: any) => (
+                  <div key={p.id} className="px-6 py-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-white/90 mb-1">{p.description ?? "Pattern finding"}</p>
+                        {p.pillarId && (
+                          <span className="text-[10px] bg-gold/10 text-gold px-2 py-0.5 rounded font-medium">{p.pillarId}</span>
+                        )}
+                      </div>
+                      <div className="text-right shrink-0">
+                        {p.confidence != null && (
+                          <p className="text-xs font-mono text-gold">{Math.round(p.confidence * 100)}% confidence</p>
+                        )}
+                        {p.sampleSize != null && (
+                          <p className="text-[10px] text-muted-foreground">{p.sampleSize} shops</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {patterns.length === 0 && (
+                  <div className="px-6 py-8 text-center text-sm text-muted-foreground">
+                    No patterns yet — run the learning analysis after logging outcomes on a few assessments.
+                  </div>
+                )}
               </div>
             </div>
           </div>
