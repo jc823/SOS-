@@ -2101,6 +2101,37 @@ Be realistic and specific to this exact market. Use your knowledge of US demogra
       return db.getAllUsers();
     }),
 
+    createUser: superAdminProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        email: z.string().email().optional(),
+        username: z.string().min(3).regex(/^[a-zA-Z0-9_.-]+$/),
+        password: z.string().min(6),
+        role: z.enum(['user', 'admin', 'super_admin', 'customer']).default('customer'),
+        shopId: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const existing = await db.getUserByUsername(input.username);
+        if (existing) throw new Error('Username already taken');
+        const passwordHash = await bcrypt.hash(input.password, 12);
+        const userId = await db.createUserWithPassword({
+          username: input.username,
+          passwordHash,
+          name: input.name,
+          email: input.email,
+          role: input.role,
+          shopId: input.shopId,
+        });
+        return { success: true, userId };
+      }),
+
+    deleteUser: superAdminProcedure
+      .input(z.object({ userId: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.deleteUser(input.userId);
+        return { success: true };
+      }),
+
     updateUserRole: superAdminProcedure
       .input(z.object({
         userId: z.number(),
