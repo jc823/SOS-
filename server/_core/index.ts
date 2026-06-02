@@ -180,8 +180,12 @@ async function seedAdminUser() {
 
 // Push schema then seed then listen
 async function start() {
-  // Create all tables if they don't exist (replaces drizzle-kit push in production)
-  await initializeDatabase();
+  // Create all tables if they don't exist — non-fatal if DB unreachable at startup
+  try {
+    await initializeDatabase();
+  } catch (err) {
+    console.error("[DB] Schema init failed — server will start anyway:", err);
+  }
 
   await seedAdminUser();
 
