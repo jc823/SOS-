@@ -29,26 +29,26 @@ function Router() {
       <Route path="/pricing" component={Pricing} />
       <Route path="/billing/success" component={BillingSuccess} />
 
-      {/* Admin / super_admin only */}
+      {/* Pro-gated routes — require active subscription (admins bypass) */}
       <Route path="/assessment">
-        <AuthGuard roles={["admin", "super_admin"]}>
+        <AuthGuard roles={["admin", "super_admin"]} requiresPro>
           <Home />
         </AuthGuard>
       </Route>
       <Route path="/assessment/:id">
         {(params) => (
-          <AuthGuard roles={["admin", "super_admin"]}>
+          <AuthGuard roles={["admin", "super_admin"]} requiresPro>
             <AssessmentDetail params={params} />
           </AuthGuard>
         )}
       </Route>
       <Route path="/dashboard">
-        <AuthGuard roles={["admin", "super_admin"]}>
+        <AuthGuard roles={["admin", "super_admin"]} requiresPro>
           <Dashboard />
         </AuthGuard>
       </Route>
       <Route path="/report">
-        <AuthGuard>
+        <AuthGuard requiresPro>
           <Report />
         </AuthGuard>
       </Route>

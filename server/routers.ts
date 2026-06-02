@@ -1,7 +1,7 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, staffProcedure, adminProcedure, superAdminProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, staffProcedure, adminProcedure, superAdminProcedure, proProcedure, router } from "./_core/trpc";
 import { sdk } from "./_core/sdk";
 import { z } from "zod";
 import * as db from "./db";
@@ -275,7 +275,7 @@ export const appRouter = router({
 
   // ─── Assessments ───
   assessments: router({
-    list: protectedProcedure.query(async ({ ctx }) => {
+    list: proProcedure.query(async ({ ctx }) => {
       // Customers only see their own shop's assessments
       if (ctx.user?.role === 'customer' && ctx.user.shopId) {
         return db.getAssessmentsByShop(ctx.user.shopId);
@@ -294,7 +294,7 @@ export const appRouter = router({
         return result;
       }),
 
-    create: staffProcedure
+    create: proProcedure
       .input(z.object({
         shopName: z.string().min(1),
         assessorName: z.string().min(1),

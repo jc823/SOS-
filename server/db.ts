@@ -1,6 +1,6 @@
 import { eq, desc, and, sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/libsql";
-import { createClient } from "@libsql/client";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import {
   InsertUser, users,
   shops, InsertShop, Shop,
@@ -25,8 +25,12 @@ let _db: ReturnType<typeof drizzle> | null = null;
 export async function getDb() {
   if (!_db) {
     try {
-      const url = process.env.DATABASE_URL ?? "file:./local.db";
-      const client = createClient({ url });
+      const url = process.env.DATABASE_URL ?? "";
+      if (!url) {
+        console.warn("[Database] DATABASE_URL not set");
+        return null;
+      }
+      const client = postgres(url, { ssl: "require", max: 10 });
       _db = drizzle(client);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
@@ -161,7 +165,7 @@ export async function getInvites() {
   const db = await getDb();
   if (!db) return [];
   // Use raw SQL to join both creator and used-by user names
-  const rows = await (db as any).all(
+  const rows = await db.execute(
     sql`SELECT i.*,
            c.name AS createdByName,
            u.name AS usedByName
@@ -372,7 +376,7 @@ export async function getDueForReassessment(daysThreshold = 60) {
   const db = await getDb();
   if (!db) return [];
   // Get the latest assessment per shop, then filter by date
-  const rows = await (db as any).all(
+  const rows = await db.execute(
     sql`SELECT s.id as shopId, s.name as shopName,
            a.id as assessmentId, a.assessmentDate, a.overallPercentage, a.overallBand, a.scalingProbability,
            CAST((unixepoch('now') - a.createdAt) / 86400 AS INTEGER) as daysSinceAssessment
@@ -469,7 +473,7 @@ export async function getLearningStats() {
 export async function getReassessmentsWithActualRevenue() {
   const db = await getDb();
   if (!db) return [];
-  const rows = await (db as any).all(
+  const rows = await db.execute(
     sql`SELECT
           r.id as reassessmentId,
           r.shopId,
@@ -501,7 +505,7 @@ export async function getReassessmentsWithActualRevenue() {
 export async function getAssessmentsWithOutcomes() {
   const db = await getDb();
   if (!db) return [];
-  const rows = await (db as any).all(
+  const rows = await db.execute(
     sql`SELECT
           a.id as assessmentId,
           a.shopId,
