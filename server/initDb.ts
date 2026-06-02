@@ -438,7 +438,7 @@ export async function initializeDatabase(): Promise<void> {
     console.log("[DB] Schema initialized ✓");
   } catch (err) {
     console.error("[DB] Schema initialization failed:", err);
-    throw err;
+    // Don't throw — let the server start; queries will fail with clear errors
   } finally {
     await sql.end();
   }
