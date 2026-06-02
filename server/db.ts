@@ -30,7 +30,11 @@ export async function getDb() {
         console.warn("[Database] DATABASE_URL not set");
         return null;
       }
-      const client = postgres(url, { ssl: "require", max: 10 });
+      // SSL: auto-detect from URL params; don't force it for Railway internal connections
+      const sslMode = url.includes("sslmode=require") || url.includes("ssl=true")
+        ? ({ rejectUnauthorized: false } as const)
+        : false;
+      const client = postgres(url, { ssl: sslMode, max: 10 });
       _db = drizzle(client);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
@@ -144,8 +148,8 @@ export async function createInvite(data: { code: string; createdById: number; ro
     role: data.role || 'user',
     shopId: data.shopId || null,
     expiresAt: data.expiresAt || null,
-  });
-  return Number(result.lastInsertRowid);
+  }).returning({ id: invites.id });
+  return result[0].id;
 }
 
 export async function getInviteByCode(code: string) {
@@ -188,8 +192,8 @@ export async function deleteInvite(inviteId: number) {
 export async function createShop(data: InsertShop): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(shops).values(data);
-  return Number(result.lastInsertRowid);
+  const result = await db.insert(shops).values(data).returning({ id: shops.id });
+  return result[0].id;
 }
 
 export async function getShops() {
@@ -214,8 +218,8 @@ export async function findOrCreateShop(name: string, createdById: number): Promi
     .limit(1);
   if (existing.length > 0) return existing[0].id;
   // Create new shop
-  const result = await db.insert(shops).values({ name, createdById });
-  return Number(result.lastInsertRowid);
+  const result = await db.insert(shops).values({ name, createdById }).returning({ id: shops.id });
+  return result[0].id;
 }
 
 export async function updateShopLogo(shopId: number, logoUrl: string | null): Promise<void> {
@@ -266,8 +270,8 @@ export async function getShopsWithLatestAssessment() {
 export async function createAssessment(data: InsertAssessment): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(assessments).values(data);
-  return Number(result.lastInsertRowid);
+  const result = await db.insert(assessments).values(data).returning({ id: assessments.id });
+  return result[0].id;
 }
 
 export async function getAssessments(limit = 50) {
@@ -332,8 +336,8 @@ export async function deleteAssessment(id: number): Promise<void> {
 export async function createOutcome(data: InsertOutcome): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(outcomes).values(data);
-  return Number(result.lastInsertRowid);
+  const result = await db.insert(outcomes).values(data).returning({ id: outcomes.id });
+  return result[0].id;
 }
 
 export async function getOutcomesByAssessment(assessmentId: number) {
@@ -361,8 +365,8 @@ export async function getAllOutcomesWithAssessments() {
 export async function createAlgorithmAdjustment(data: InsertAlgorithmAdjustment): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(algorithmAdjustments).values(data);
-  return Number(result.lastInsertRowid);
+  const result = await db.insert(algorithmAdjustments).values(data).returning({ id: algorithmAdjustments.id });
+  return result[0].id;
 }
 
 export async function getLatestAdjustments(limit = 20) {
@@ -561,8 +565,8 @@ export async function updateAssessmentActionPlan(assessmentId: number, actionPla
 export async function createSeoAudit(data: Omit<InsertSeoAudit, 'id' | 'createdAt' | 'updatedAt'>): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(seoAudits).values(data);
-  return Number(result.lastInsertRowid);
+  const result = await db.insert(seoAudits).values(data).returning({ id: seoAudits.id });
+  return result[0].id;
 }
 
 export async function getSeoAuditById(id: number): Promise<SeoAudit | null> {
@@ -596,8 +600,8 @@ export async function updateSeoAudit(id: number, data: Partial<InsertSeoAudit>):
 export async function createTemplate(data: InsertAssessmentTemplate): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(assessmentTemplates).values(data);
-  return Number(result.lastInsertRowid);
+  const result = await db.insert(assessmentTemplates).values(data).returning({ id: assessmentTemplates.id });
+  return result[0].id;
 }
 
 export async function listTemplates(): Promise<AssessmentTemplate[]> {
@@ -624,8 +628,8 @@ export async function deleteTemplate(id: number): Promise<void> {
 export async function createBenchmark(data: InsertIndustryBenchmark): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(industryBenchmarks).values(data);
-  return Number(result.lastInsertRowid);
+  const result = await db.insert(industryBenchmarks).values(data).returning({ id: industryBenchmarks.id });
+  return result[0].id;
 }
 
 export async function listBenchmarks(): Promise<IndustryBenchmark[]> {
@@ -651,8 +655,8 @@ export async function deleteBenchmark(id: number): Promise<void> {
 export async function createOnboardingTemplate(data: InsertOnboardingTemplate): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(onboardingTemplates).values(data);
-  return Number(result.lastInsertRowid);
+  const result = await db.insert(onboardingTemplates).values(data).returning({ id: onboardingTemplates.id });
+  return result[0].id;
 }
 
 export async function listOnboardingTemplates(): Promise<OnboardingTemplate[]> {
@@ -672,8 +676,8 @@ export async function deleteOnboardingTemplate(id: number): Promise<void> {
 export async function createOnboardingChecklist(data: InsertOnboardingChecklist): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(onboardingChecklists).values(data);
-  return Number(result.lastInsertRowid);
+  const result = await db.insert(onboardingChecklists).values(data).returning({ id: onboardingChecklists.id });
+  return result[0].id;
 }
 
 export async function getChecklistByShop(shopId: number): Promise<OnboardingChecklist[]> {
@@ -706,8 +710,8 @@ export async function deleteChecklist(id: number): Promise<void> {
 export async function createDirectoryEntry(data: InsertDirectoryEntry): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(directoryEntries).values(data);
-  return Number(result.lastInsertRowid);
+  const result = await db.insert(directoryEntries).values(data).returning({ id: directoryEntries.id });
+  return result[0].id;
 }
 
 export async function listDirectoryEntries(approvedOnly = false): Promise<DirectoryEntry[]> {
@@ -793,8 +797,8 @@ import {
 export async function insertSalesData(data: InsertSalesData): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(salesData).values(data);
-  return Number(result.lastInsertRowid);
+  const result = await db.insert(salesData).values(data).returning({ id: salesData.id });
+  return result[0].id;
 }
 
 export async function getSalesDataByShop(shopId: number, limit = 52) {
@@ -837,8 +841,8 @@ export async function getSalesDataByExternalId(externalId: string) {
 export async function insertSalesTeamSnapshot(data: InsertSalesTeamSnapshot): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(salesTeamSnapshots).values(data);
-  return Number(result.lastInsertRowid);
+  const result = await db.insert(salesTeamSnapshots).values(data).returning({ id: salesTeamSnapshots.id });
+  return result[0].id;
 }
 
 export async function getTeamSnapshotsBySalesDataId(salesDataId: number) {
@@ -870,8 +874,8 @@ export async function getAllTeamSnapshots(limit = 500) {
 export async function createApiKey(data: InsertApiKey): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(apiKeys).values(data);
-  return Number(result.lastInsertRowid);
+  const result = await db.insert(apiKeys).values(data).returning({ id: apiKeys.id });
+  return result[0].id;
 }
 
 export async function getApiKeyByPrefix(prefix: string) {
@@ -915,8 +919,8 @@ export async function deactivateApiKey(id: number) {
 export async function createLead(data: InsertLead): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(leads).values(data);
-  return Number(result.lastInsertRowid);
+  const result = await db.insert(leads).values(data).returning({ id: leads.id });
+  return result[0].id;
 }
 
 export async function getAllLeads(limit = 100, offset = 0): Promise<Lead[]> {
@@ -1061,8 +1065,8 @@ export async function getIndustryBenchmarks() {
 export async function createSelfAssessment(data: InsertSelfAssessment): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(selfAssessments).values(data);
-  return Number(result.lastInsertRowid);
+  const result = await db.insert(selfAssessments).values(data).returning({ id: selfAssessments.id });
+  return result[0].id;
 }
 
 export async function getHighRiskAssessments() {
@@ -1180,4 +1184,100 @@ export async function getUserByStripeCustomerId(customerId: string) {
   if (!db) return null;
   const rows = await db.select().from(users).where(eq(users.stripeCustomerId, customerId)).limit(1);
   return rows[0] ?? null;
+}
+
+// ─── CRM: Notes ──────────────────────────────────────────────────────────────
+
+import { clientNotes, InsertClientNote, clientTasks, InsertClientTask, actionPlanProgress, InsertActionPlanProgress } from "../drizzle/schema";
+
+export async function getNotesByShop(shopId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(clientNotes).where(eq(clientNotes.shopId, shopId)).orderBy(desc(clientNotes.createdAt));
+}
+
+export async function addNote(data: InsertClientNote): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(clientNotes).values(data).returning({ id: clientNotes.id });
+  return result[0].id;
+}
+
+export async function deleteNote(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(clientNotes).where(eq(clientNotes.id, id));
+}
+
+// ─── CRM: Tasks ──────────────────────────────────────────────────────────────
+
+export async function getTasksByShop(shopId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(clientTasks).where(eq(clientTasks.shopId, shopId)).orderBy(clientTasks.dueDate);
+}
+
+export async function createTask(data: InsertClientTask): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(clientTasks).values(data).returning({ id: clientTasks.id });
+  return result[0].id;
+}
+
+export async function completeTask(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(clientTasks).set({ completed: true, completedAt: new Date(), updatedAt: new Date() }).where(eq(clientTasks.id, id));
+}
+
+export async function deleteTask(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(clientTasks).where(eq(clientTasks.id, id));
+}
+
+// ─── CRM: Action Plan Progress ────────────────────────────────────────────────
+
+export async function getActionProgress(assessmentId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(actionPlanProgress).where(eq(actionPlanProgress.assessmentId, assessmentId)).orderBy(actionPlanProgress.actionIndex);
+}
+
+export async function upsertActionProgress(data: { assessmentId: number; shopId: number; actionIndex: number; actionText: string; completed: boolean }): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const existing = await db.select().from(actionPlanProgress)
+    .where(and(eq(actionPlanProgress.assessmentId, data.assessmentId), eq(actionPlanProgress.actionIndex, data.actionIndex)))
+    .limit(1);
+  if (existing.length > 0) {
+    await db.update(actionPlanProgress).set({
+      completed: data.completed,
+      completedAt: data.completed ? new Date() : null,
+      updatedAt: new Date(),
+    }).where(eq(actionPlanProgress.id, existing[0].id));
+  } else {
+    await db.insert(actionPlanProgress).values({ ...data, completedAt: data.completed ? new Date() : null });
+  }
+}
+
+// ─── CRM: All clients overview ────────────────────────────────────────────────
+
+export async function getAllClientsForCRM() {
+  const db = await getDb();
+  if (!db) return [];
+  const allShops = await db.select().from(shops).orderBy(desc(shops.updatedAt));
+  const results = await Promise.all(allShops.map(async (shop) => {
+    const [latestAssessment] = await db.select().from(assessments).where(eq(assessments.shopId, shop.id)).orderBy(desc(assessments.createdAt)).limit(1);
+    const notes = await db.select({ id: clientNotes.id }).from(clientNotes).where(eq(clientNotes.shopId, shop.id));
+    const tasks = await db.select().from(clientTasks).where(eq(clientTasks.shopId, shop.id));
+    return {
+      shop,
+      latestAssessment: latestAssessment ?? null,
+      noteCount: notes.length,
+      taskCount: tasks.length,
+      openTaskCount: tasks.filter(t => !t.completed).length,
+    };
+  }));
+  return results;
 }

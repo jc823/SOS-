@@ -429,3 +429,44 @@ export const settings = pgTable("settings", {
 
 export type Setting = typeof settings.$inferSelect;
 export type InsertSetting = typeof settings.$inferInsert;
+
+// ─── CRM: Client Notes ───
+export const clientNotes = pgTable("clientNotes", {
+  id: serial("id").primaryKey(),
+  shopId: integer("shopId").notNull(),
+  content: text("content").notNull(),
+  createdById: integer("createdById").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ClientNote = typeof clientNotes.$inferSelect;
+export type InsertClientNote = typeof clientNotes.$inferInsert;
+
+// ─── CRM: Client Tasks ───
+export const clientTasks = pgTable("clientTasks", {
+  id: serial("id").primaryKey(),
+  shopId: integer("shopId").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  dueDate: timestamp("dueDate"),
+  completed: boolean("completed").default(false).notNull(),
+  completedAt: timestamp("completedAt"),
+  createdById: integer("createdById").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type ClientTask = typeof clientTasks.$inferSelect;
+export type InsertClientTask = typeof clientTasks.$inferInsert;
+
+// ─── CRM: Action Plan Progress ───
+export const actionPlanProgress = pgTable("actionPlanProgress", {
+  id: serial("id").primaryKey(),
+  assessmentId: integer("assessmentId").notNull(),
+  shopId: integer("shopId").notNull(),
+  actionIndex: integer("actionIndex").notNull(),
+  actionText: text("actionText").notNull(),
+  completed: boolean("completed").default(false).notNull(),
+  completedAt: timestamp("completedAt"),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type ActionPlanProgress = typeof actionPlanProgress.$inferSelect;
+export type InsertActionPlanProgress = typeof actionPlanProgress.$inferInsert;
