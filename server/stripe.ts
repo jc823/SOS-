@@ -25,7 +25,7 @@ export const PLAN_DETAILS = {
   },
   pro: {
     name: "Pro",
-    price: 175,
+    price: 159,
     description: "Full Scale Toolkit access",
     features: [
       "Full SOS Assessment tool",

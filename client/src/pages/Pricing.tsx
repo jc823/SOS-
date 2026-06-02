@@ -122,7 +122,7 @@ export default function Pricing() {
             <div className="mb-6">
               <p className="text-xs font-bold uppercase tracking-widest text-gold mb-2">Pro</p>
               <div className="flex items-end gap-1 mb-1">
-                <span className="text-4xl font-black">$175</span>
+                <span className="text-4xl font-black">$159</span>
                 <span className="text-muted-foreground text-sm mb-1">/mo per seat</span>
               </div>
               <p className="text-xs text-muted-foreground">Full toolkit access</p>
