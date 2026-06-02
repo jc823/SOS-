@@ -18,6 +18,11 @@ export const users = sqliteTable("users", {
   shopId: integer("shopId"),
   magicLinkToken: text("magicLinkToken"),
   magicLinkExpiry: integer("magicLinkExpiry", { mode: "timestamp" }),
+  // Stripe billing
+  stripeCustomerId: text("stripeCustomerId"),
+  subscriptionStatus: text("subscriptionStatus", { enum: ["free", "pro", "agent"] }).default("free").notNull(),
+  subscriptionId: text("subscriptionId"),
+  subscriptionPeriodEnd: integer("subscriptionPeriodEnd", { mode: "timestamp" }),
   createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
   lastSignedIn: integer("lastSignedIn", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),

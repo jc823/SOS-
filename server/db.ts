@@ -1151,3 +1151,23 @@ export async function updateSetting(key: string, value: string, updatedById?: nu
     .set({ value, updatedById: updatedById ?? null, updatedAt: new Date() })
     .where(eq(settings.key, key));
 }
+
+// ─── Billing / Subscriptions ──────────────────────────────────────────────────
+
+export async function updateUserSubscription(userId: number, data: {
+  stripeCustomerId?: string;
+  subscriptionStatus?: 'free' | 'pro' | 'agent';
+  subscriptionId?: string | null;
+  subscriptionPeriodEnd?: Date | null;
+}): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set({ ...data, updatedAt: new Date() }).where(eq(users.id, userId));
+}
+
+export async function getUserByStripeCustomerId(customerId: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(users).where(eq(users.stripeCustomerId, customerId)).limit(1);
+  return rows[0] ?? null;
+}

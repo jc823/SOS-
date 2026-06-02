@@ -13,6 +13,7 @@ import * as webhookService from "./webhooks";
 import { syncFromSalesArena, getSalesArenaLiveData } from "./sales-arena-sync";
 import { runPredictionEngine } from "./prediction-engine";
 import { analyzePatterns } from "./learning-engine";
+import { stripe, PRICES, PLAN_DETAILS, canAccessPro } from "./stripe";
 
 export const appRouter = router({
   system: systemRouter,
@@ -2253,6 +2254,68 @@ Do not use bullet points unless specifically asked. Write in plain paragraphs.`;
   // ─── Magic Link Auth ──────────────────────────────────────────────────────
   // sendMagicLink: stores a token and logs the link (wire up email later).
   // verifyMagicLink: validates token, creates session, clears token.
+
+  // ─── Billing ──────────────────────────────────────────────────────────────
+  billing: router({
+    // Get current subscription status
+    getStatus: protectedProcedure.query(async ({ ctx }) => {
+      return {
+        status: ctx.user.subscriptionStatus ?? "free",
+        periodEnd: ctx.user.subscriptionPeriodEnd ?? null,
+        plans: PLAN_DETAILS,
+      };
+    }),
+
+    // Create Stripe Checkout session → redirect user to Stripe
+    createCheckoutSession: protectedProcedure
+      .input(z.object({
+        plan: z.enum(["pro", "agent"]),
+        successUrl: z.string(),
+        cancelUrl: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!stripe) throw new Error("Stripe not configured");
+        const priceId = PRICES[input.plan];
+        if (!priceId) throw new Error(`No price configured for plan: ${input.plan}. Set STRIPE_PRICE_${input.plan.toUpperCase()}_MONTHLY in env.`);
+
+        // Get or create Stripe customer
+        let customerId = ctx.user.stripeCustomerId ?? undefined;
+        if (!customerId) {
+          const customer = await stripe.customers.create({
+            email: ctx.user.email ?? undefined,
+            name: ctx.user.name ?? ctx.user.username ?? undefined,
+            metadata: { userId: String(ctx.user.id) },
+          });
+          customerId = customer.id;
+          await db.updateUserSubscription(ctx.user.id, { stripeCustomerId: customerId });
+        }
+
+        const session = await stripe.checkout.sessions.create({
+          customer: customerId,
+          payment_method_types: ["card"],
+          mode: "subscription",
+          line_items: [{ price: priceId, quantity: 1 }],
+          success_url: input.successUrl,
+          cancel_url: input.cancelUrl,
+          metadata: { userId: String(ctx.user.id), plan: input.plan },
+        });
+
+        return { url: session.url };
+      }),
+
+    // Create Stripe Customer Portal session → manage/cancel subscription
+    createPortalSession: protectedProcedure
+      .input(z.object({ returnUrl: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        if (!stripe) throw new Error("Stripe not configured");
+        if (!ctx.user.stripeCustomerId) throw new Error("No billing account found");
+        const session = await stripe.billingPortal.sessions.create({
+          customer: ctx.user.stripeCustomerId,
+          return_url: input.returnUrl,
+        });
+        return { url: session.url };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

@@ -10,6 +10,7 @@ import { ENV } from "./env";
 import { COOKIE_NAME } from "../../shared/const";
 import * as db from "../db";
 import bcrypt from "bcryptjs";
+import { stripe } from "../stripe";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -44,6 +45,73 @@ app.use(
     },
   }),
 );
+
+// ─── Stripe Webhook ────────────────────────────────────────────────────────
+// Must be registered BEFORE express.json() middleware so we get the raw body
+app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+  if (!stripe) { res.status(400).send("Stripe not configured"); return; }
+  const sig = req.headers["stripe-signature"];
+  if (!sig || !ENV.stripeWebhookSecret) { res.status(400).send("Missing signature"); return; }
+
+  let event: import("stripe").Stripe.Event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, ENV.stripeWebhookSecret);
+  } catch (err) {
+    console.error("[Stripe] Webhook signature failed:", err);
+    res.status(400).send("Webhook signature verification failed");
+    return;
+  }
+
+  try {
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object as import("stripe").Stripe.Checkout.Session;
+        const userId = session.metadata?.userId ? Number(session.metadata.userId) : null;
+        const plan = (session.metadata?.plan ?? "pro") as "pro" | "agent";
+        if (userId && session.subscription) {
+          const sub = await stripe.subscriptions.retrieve(session.subscription as string);
+          await db.updateUserSubscription(userId, {
+            stripeCustomerId: session.customer as string,
+            subscriptionStatus: plan,
+            subscriptionId: sub.id,
+            subscriptionPeriodEnd: new Date((sub as any).current_period_end * 1000),
+          });
+          console.log(`[Stripe] User ${userId} upgraded to ${plan}`);
+        }
+        break;
+      }
+      case "customer.subscription.updated": {
+        const sub = event.data.object as import("stripe").Stripe.Subscription;
+        const user = await db.getUserByStripeCustomerId(sub.customer as string);
+        if (user) {
+          const active = sub.status === "active" || sub.status === "trialing";
+          await db.updateUserSubscription(user.id, {
+            subscriptionStatus: active ? (user.subscriptionStatus as "pro" | "agent" ?? "pro") : "free",
+            subscriptionPeriodEnd: new Date((sub as any).current_period_end * 1000),
+          });
+        }
+        break;
+      }
+      case "customer.subscription.deleted": {
+        const sub = event.data.object as import("stripe").Stripe.Subscription;
+        const user = await db.getUserByStripeCustomerId(sub.customer as string);
+        if (user) {
+          await db.updateUserSubscription(user.id, {
+            subscriptionStatus: "free",
+            subscriptionId: null,
+            subscriptionPeriodEnd: null,
+          });
+          console.log(`[Stripe] User ${user.id} downgraded to free`);
+        }
+        break;
+      }
+    }
+  } catch (err) {
+    console.error("[Stripe] Webhook handler error:", err);
+  }
+
+  res.json({ received: true });
+});
 
 // ─── Diagnostic endpoint (safe — no secrets exposed) ──────────────────────
 app.get("/api/admin-status", async (_req, res) => {

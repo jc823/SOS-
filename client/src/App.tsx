@@ -15,6 +15,8 @@ import Register from "./pages/Register";
 import Quiz from "./pages/Quiz";
 import CustomerPortal from "./pages/CustomerPortal";
 import AdminPanel from "./pages/AdminPanel";
+import Pricing from "./pages/Pricing";
+import BillingSuccess from "./pages/BillingSuccess";
 
 function Router() {
   return (
@@ -24,6 +26,8 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/quiz" component={Quiz} />
+      <Route path="/pricing" component={Pricing} />
+      <Route path="/billing/success" component={BillingSuccess} />
 
       {/* Admin / super_admin only */}
       <Route path="/assessment">
