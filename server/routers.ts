@@ -2306,8 +2306,14 @@ Do not use bullet points unless specifically asked. Write in plain paragraphs.`;
       }))
       .mutation(async ({ ctx, input }) => {
         if (!stripe) throw new Error("Stripe not configured");
-        const priceId = PRICES[input.plan];
-        if (!priceId) throw new Error(`No price configured for plan: ${input.plan}. Set STRIPE_PRICE_${input.plan.toUpperCase()}_MONTHLY in env.`);
+
+        // Plan pricing — defined inline so no env var needed for price ID
+        const PLAN_PRICES: Record<string, { amount: number; productName: string }> = {
+          pro:   { amount: 15900, productName: "Scale Toolkit Pro" },
+          agent: { amount: 29900, productName: "Scale Toolkit Agents" },
+        };
+        const planPrice = PLAN_PRICES[input.plan];
+        if (!planPrice) throw new Error(`Unknown plan: ${input.plan}`);
 
         // Get or create Stripe customer
         let customerId = ctx.user.stripeCustomerId ?? undefined;
@@ -2321,11 +2327,20 @@ Do not use bullet points unless specifically asked. Write in plain paragraphs.`;
           await db.updateUserSubscription(ctx.user.id, { stripeCustomerId: customerId });
         }
 
+        // Use price_data so we don't need a pre-created price ID env var
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
           payment_method_types: ["card"],
           mode: "subscription",
-          line_items: [{ price: priceId, quantity: 1 }],
+          line_items: [{
+            price_data: {
+              currency: "usd",
+              product_data: { name: planPrice.productName },
+              unit_amount: planPrice.amount,
+              recurring: { interval: "month" },
+            },
+            quantity: 1,
+          }],
           success_url: input.successUrl,
           cancel_url: input.cancelUrl,
           metadata: { userId: String(ctx.user.id), plan: input.plan },
