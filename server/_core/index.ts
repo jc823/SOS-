@@ -1,5 +1,4 @@
 import "dotenv/config";
-import { execSync } from "child_process";
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -12,6 +11,7 @@ import { COOKIE_NAME } from "../../shared/const";
 import * as db from "../db";
 import bcrypt from "bcryptjs";
 import { stripe } from "../stripe";
+import { initializeDatabase } from "../initDb";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -180,18 +180,8 @@ async function seedAdminUser() {
 
 // Push schema then seed then listen
 async function start() {
-  // Run db:push at startup so Railway doesn't need it in build phase
-  if (process.env.DATABASE_URL) {
-    try {
-      console.log("[DB] Running schema push...");
-      // Use direct binary path so it works in both dev and production
-      const drizzleKitBin = new URL("../../node_modules/.bin/drizzle-kit", import.meta.url).pathname;
-      execSync(`node ${drizzleKitBin} push`, { stdio: "inherit", cwd: process.cwd() });
-      console.log("[DB] Schema push complete");
-    } catch (err) {
-      console.error("[DB] Schema push failed — continuing anyway:", err);
-    }
-  }
+  // Create all tables if they don't exist (replaces drizzle-kit push in production)
+  await initializeDatabase();
 
   await seedAdminUser();
 
