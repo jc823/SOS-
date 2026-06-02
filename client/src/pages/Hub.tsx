@@ -9,10 +9,9 @@ import { getLoginUrl } from '@/const';
 import { trpc } from '@/lib/trpc';
 import { motion } from 'framer-motion';
 import {
-  ClipboardCheck, LayoutDashboard,
+  ClipboardCheck, LayoutDashboard, Search,
   LogOut, ArrowRight, Shield, Zap,
-  Loader2, Lock, ClipboardList,
-  ChevronRight, ExternalLink,
+  Loader2, Lock, ChevronRight, ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ThemeToggle from '@/components/ThemeToggle';
