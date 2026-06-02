@@ -8,18 +8,20 @@ interface AuthGuardProps {
   children: React.ReactNode;
   /** If provided, user must have one of these roles. super_admin always passes. */
   roles?: Role[];
+  /** If true, user must have an active Pro or Agent subscription (admins bypass). */
+  requiresPro?: boolean;
 }
 
 /**
  * AuthGuard — Wraps protected routes.
  *
  * Rules:
- *   - Not logged in              → redirect to /login
- *   - Logged in, wrong role      → customer → /portal, others → /404
- *   - super_admin                → always passes
- *   - No roles prop              → just requires login
+ *   - Not logged in              → /login
+ *   - Wrong role                 → customer → /portal, others → /404
+ *   - requiresPro + free user    → /pricing
+ *   - super_admin                → always passes everything
  */
-export default function AuthGuard({ children, roles }: AuthGuardProps) {
+export default function AuthGuard({ children, roles, requiresPro }: AuthGuardProps) {
   const { user, loading } = useAuth();
   const [, navigate] = useLocation();
 
@@ -32,7 +34,7 @@ export default function AuthGuard({ children, roles }: AuthGuardProps) {
       return;
     }
 
-    // super_admin always gets through
+    // super_admin bypasses everything
     if (user.role === "super_admin") return;
 
     // Role check
@@ -42,10 +44,19 @@ export default function AuthGuard({ children, roles }: AuthGuardProps) {
       } else {
         navigate("/404");
       }
+      return;
     }
-  }, [user, loading, roles, navigate]);
 
-  // Show nothing while checking auth
+    // Subscription check — admins bypass
+    if (requiresPro && user.role !== "admin") {
+      const status = user.subscriptionStatus ?? "free";
+      if (status !== "pro" && status !== "agent") {
+        navigate("/pricing");
+        return;
+      }
+    }
+  }, [user, loading, roles, requiresPro, navigate]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -54,11 +65,14 @@ export default function AuthGuard({ children, roles }: AuthGuardProps) {
     );
   }
 
-  // Not authenticated → render nothing (redirect fires in useEffect)
   if (!user) return null;
 
-  // Wrong role → render nothing (redirect fires in useEffect)
   if (roles && user.role !== "super_admin" && !roles.includes(user.role as Role)) return null;
+
+  if (requiresPro && user.role !== "super_admin" && user.role !== "admin") {
+    const status = user.subscriptionStatus ?? "free";
+    if (status !== "pro" && status !== "agent") return null;
+  }
 
   return <>{children}</>;
 }

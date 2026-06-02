@@ -49,6 +49,26 @@ export const adminProcedure = t.procedure.use(
   }),
 );
 
+// Pro procedure — requires active Pro or Agent subscription (admin/super_admin always pass)
+export const proProcedure = t.procedure.use(
+  middleware(({ ctx, next }) => {
+    if (!ctx.user) {
+      throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+    }
+    const role = ctx.user.role;
+    const status = ctx.user.subscriptionStatus ?? "free";
+    const isAdmin = role === "admin" || role === "super_admin";
+    const isPaid = status === "pro" || status === "agent";
+    if (!isAdmin && !isPaid) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "This feature requires a Pro subscription. Upgrade at /pricing.",
+      });
+    }
+    return next({ ctx: { ...ctx, user: ctx.user } });
+  }),
+);
+
 // Super admin only
 export const superAdminProcedure = t.procedure.use(
   middleware(({ ctx, next }) => {
