@@ -184,7 +184,9 @@ async function start() {
   if (process.env.DATABASE_URL) {
     try {
       console.log("[DB] Running schema push...");
-      execSync("pnpm db:push", { stdio: "inherit" });
+      // Use direct binary path so it works in both dev and production
+      const drizzleKitBin = new URL("../../node_modules/.bin/drizzle-kit", import.meta.url).pathname;
+      execSync(`node ${drizzleKitBin} push`, { stdio: "inherit", cwd: process.cwd() });
       console.log("[DB] Schema push complete");
     } catch (err) {
       console.error("[DB] Schema push failed — continuing anyway:", err);
