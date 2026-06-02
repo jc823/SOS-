@@ -17,6 +17,12 @@ import {
   leads, InsertLead, Lead,
   selfAssessments, InsertSelfAssessment,
   settings, Setting,
+  salesData, InsertSalesData, SalesData,
+  salesTeamSnapshots, InsertSalesTeamSnapshot, SalesTeamSnapshot,
+  apiKeys, InsertApiKey, ApiKey,
+  clientNotes, InsertClientNote,
+  clientTasks, InsertClientTask,
+  actionPlanProgress,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -119,8 +125,8 @@ export async function createUserWithPassword(data: {
     role: data.role || 'user',
     shopId: data.shopId || null,
     lastSignedIn: new Date(),
-  });
-  return Number(result.lastInsertRowid);
+  }).returning({ id: users.id });
+  return result[0].id;
 }
 
 export async function getUserByEmail(email: string) {
@@ -788,12 +794,6 @@ export async function getPortfolioStats() {
 
 // ─── Sales Data (External API) ───
 
-import {
-  salesData, InsertSalesData, SalesData,
-  salesTeamSnapshots, InsertSalesTeamSnapshot, SalesTeamSnapshot,
-  apiKeys, InsertApiKey, ApiKey,
-} from "../drizzle/schema";
-
 export async function insertSalesData(data: InsertSalesData): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -1187,8 +1187,6 @@ export async function getUserByStripeCustomerId(customerId: string) {
 }
 
 // ─── CRM: Notes ──────────────────────────────────────────────────────────────
-
-import { clientNotes, InsertClientNote, clientTasks, InsertClientTask, actionPlanProgress, InsertActionPlanProgress } from "../drizzle/schema";
 
 export async function getNotesByShop(shopId: number) {
   const db = await getDb();
