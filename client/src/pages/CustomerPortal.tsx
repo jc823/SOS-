@@ -4,6 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { BOOKING_URL } from "@/const";
 import { computeRevenueGap } from "@/lib/quiz-engine";
+import AIAssistant from "@/components/AIAssistant";
 import {
   BarChart3, Trophy, TrendingUp, Calendar, LogOut, Lock,
   ArrowRight, Loader2, DollarSign,
@@ -271,6 +272,13 @@ export default function CustomerPortal() {
                 </div>
               </div>
             )}
+
+            {/* AI Coach */}
+            <AIAssistant
+              shopId={shop.id}
+              assessmentId={latestAssessment.id}
+              shopName={shop.name}
+            />
 
             {/* Bottom CTA */}
             <div className="bg-white/[0.03] border border-gold/20 rounded-2xl p-8 text-center">

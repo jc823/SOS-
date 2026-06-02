@@ -85,6 +85,7 @@ export const assessments = sqliteTable("assessments", {
   businessProfile: text("businessProfile", { mode: "json" }),
   previousAssessmentId: integer("previousAssessmentId"),
   actualRevenue: integer("actualRevenue"),
+  predictions: text("predictions"),
   createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
 });
@@ -391,3 +392,31 @@ export const leads = sqliteTable("leads", {
 
 export type Lead = typeof leads.$inferSelect;
 export type InsertLead = typeof leads.$inferInsert;
+
+// ─── Self Assessments ───
+export const selfAssessments = sqliteTable("self_assessments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  shopId: integer("shopId"),
+  email: text("email"),
+  scores: text("scores", { mode: "json" }).notNull(),
+  overallScore: real("overallScore").notNull(),
+  source: text("source", { enum: ["quiz", "portal"] }).notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+});
+export type SelfAssessment = typeof selfAssessments.$inferSelect;
+export type InsertSelfAssessment = typeof selfAssessments.$inferInsert;
+
+// ─── System Settings ───
+export const settings = sqliteTable("settings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  key: text("key").notNull().unique(),
+  value: text("value").notNull(),
+  label: text("label").notNull(),
+  description: text("description"),
+  category: text("category").notNull().default("general"),
+  updatedById: integer("updatedById"),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+});
+
+export type Setting = typeof settings.$inferSelect;
+export type InsertSetting = typeof settings.$inferInsert;

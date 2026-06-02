@@ -11,6 +11,8 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import * as webhookService from "./webhooks";
 import { syncFromSalesArena, getSalesArenaLiveData } from "./sales-arena-sync";
+import { runPredictionEngine } from "./prediction-engine";
+import { analyzePatterns } from "./learning-engine";
 
 export const appRouter = router({
   system: systemRouter,
@@ -345,6 +347,9 @@ export const appRouter = router({
           previousAssessmentId: input.previousAssessmentId ?? null,
           actualRevenue: input.actualRevenue ?? null,
         });
+
+        // Fire prediction engine in background — don't block the response
+        runPredictionEngine(assessmentId).catch(err => console.error("[Prediction Engine]", err));
 
         return { id: assessmentId, shopId };
       }),
@@ -2123,6 +2128,125 @@ Be realistic and specific to this exact market. Use your knowledge of US demogra
       .mutation(async ({ input }) => {
         await db.updateShopResultsUnlocked(input.shopId, input.unlocked);
         return { success: true };
+      }),
+
+    runLearningAnalysis: superAdminProcedure.mutation(async () => {
+      await analyzePatterns();
+      return { success: true };
+    }),
+
+    getAIInsights: superAdminProcedure.query(async () => {
+      const highRiskShops = await db.getHighRiskAssessments();
+      const recentPatterns = await db.getLatestAlgorithmAdjustments(10);
+      return { highRiskShops, recentPatterns };
+    }),
+
+    // ── Settings ──
+    getSettings: superAdminProcedure.query(async () => {
+      return db.getAllSettings();
+    }),
+
+    updateSetting: superAdminProcedure
+      .input(z.object({ key: z.string(), value: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        await db.updateSetting(input.key, input.value, ctx.user.id);
+        return { success: true };
+      }),
+
+    // ── Stats overview ──
+    getStats: superAdminProcedure.query(async () => {
+      return db.getPredictionStats();
+    }),
+  }),
+
+  // ─── AI Assistant ─────────────────────────────────────────────────────────
+  aiAssistant: router({
+    chat: protectedProcedure
+      .input(z.object({
+        message: z.string().min(1).max(2000),
+        assessmentId: z.number(),
+        conversationHistory: z.array(z.object({
+          role: z.enum(["user", "assistant"]),
+          content: z.string(),
+        })).max(20),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // 1. Load assessment + predictions
+        const result = await db.getAssessmentById(input.assessmentId);
+        if (!result) throw new Error("Assessment not found");
+        const { assessment, shopName } = result;
+
+        // 2. Customer access check
+        if (ctx.user.role === "customer" && ctx.user.shopId !== assessment.shopId) {
+          throw new Error("Access denied");
+        }
+
+        // 3. Parse predictions if available
+        let predictions: any = null;
+        if (assessment.predictions) {
+          try { predictions = JSON.parse(assessment.predictions as string); } catch {}
+        }
+
+        // 4. Build system prompt with full shop context
+        const top3 = predictions?.top3Actions?.slice(0, 3).map((a: any) => `- ${a.action} (${a.pillar}, $${a.projectedLift}/mo lift)`).join("\n") ?? "Not yet generated";
+        const bottlenecks = Array.isArray(assessment.bottlenecks)
+          ? assessment.bottlenecks.slice(0, 3).map((b: any) => typeof b === "string" ? b : b.description || b.name || JSON.stringify(b)).join(", ")
+          : "See assessment";
+
+        const systemPrompt = `You are an AI business coach for ${shopName}, an auto detailing shop.
+
+Their current SOS score is ${assessment.overallPercentage}% — ${assessment.overallBand}.
+Scaling probability: ${Math.round(assessment.scalingProbability)}%.
+Revenue tier: ${assessment.revenueTier}.
+Current monthly revenue: ${assessment.currentRevenue ? "$" + assessment.currentRevenue.toLocaleString() : "not provided"}.
+Goal monthly revenue: ${assessment.goalRevenue ? "$" + assessment.goalRevenue.toLocaleString() : "not provided"}.
+
+Top bottlenecks: ${bottlenecks}.
+
+Top 3 recommended actions:
+${top3}
+
+${predictions ? `Predicted revenue in 90 days if actions taken: $${predictions.revenueProjection?.projected90Days?.toLocaleString() ?? "unknown"}.
+Risk level: ${predictions.riskScore?.level ?? "unknown"} — ${predictions.riskScore?.primaryRiskFactor ?? ""}.` : ""}
+
+You help them understand their results and take action. Be specific, direct, and encouraging.
+Never give generic advice — always tie answers to their actual scores and situation.
+Keep responses conversational and under 150 words unless they ask for detail.
+Do not use bullet points unless specifically asked. Write in plain paragraphs.`;
+
+        // 5. Call LLM
+        const messages = [
+          { role: "system" as const, content: systemPrompt },
+          ...input.conversationHistory.map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
+          { role: "user" as const, content: input.message },
+        ];
+
+        const llmResult = await invokeLLM({ messages, max_tokens: 300 });
+        const reply = llmResult.choices[0]?.message?.content ?? "I couldn't generate a response right now. Please try again.";
+
+        return { reply };
+      }),
+  }),
+
+  // ─── Self Assessments ─────────────────────────────────────────────────────
+  selfAssessments: router({
+    save: publicProcedure
+      .input(z.object({
+        email: z.string().email().optional(),
+        shopId: z.number().optional(),
+        scores: z.record(z.string(), z.number()),
+        overallScore: z.number(),
+        source: z.enum(["quiz", "portal"]),
+      }))
+      .mutation(async ({ input }) => {
+        const id = await db.createSelfAssessment({
+          email: input.email,
+          shopId: input.shopId,
+          scores: input.scores,
+          overallScore: input.overallScore,
+          source: input.source,
+        });
+        return { id };
       }),
   }),
 
