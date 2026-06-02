@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { execSync } from "child_process";
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -177,13 +178,27 @@ async function seedAdminUser() {
   }
 }
 
-// Seed FIRST, then start listening so the admin user always exists before
-// the server accepts traffic.
-seedAdminUser().then(() => {
+// Push schema then seed then listen
+async function start() {
+  // Run db:push at startup so Railway doesn't need it in build phase
+  if (process.env.DATABASE_URL) {
+    try {
+      console.log("[DB] Running schema push...");
+      execSync("pnpm db:push", { stdio: "inherit" });
+      console.log("[DB] Schema push complete");
+    } catch (err) {
+      console.error("[DB] Schema push failed — continuing anyway:", err);
+    }
+  }
+
+  await seedAdminUser();
+
   app.listen(ENV.port, () => {
     console.log(`[Server] Running on http://localhost:${ENV.port}`);
     console.log(`[Server] Mode: ${ENV.nodeEnv}`);
   });
-});
+}
+
+start();
 
 export { app };
