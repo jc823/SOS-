@@ -248,6 +248,7 @@ export async function getShopsWithLatestAssessment() {
     latestScores: sql<any>`(SELECT a.scores FROM assessments a WHERE a.shopId = ${shops.id} ORDER BY a.createdAt DESC LIMIT 1)`,
     latestBusinessProfile: sql<any>`(SELECT a.businessProfile FROM assessments a WHERE a.shopId = ${shops.id} ORDER BY a.createdAt DESC LIMIT 1)`,
     assessmentCount: sql<number>`(SELECT COUNT(*) FROM assessments a WHERE a.shopId = ${shops.id})`,
+    resultsUnlocked: shops.resultsUnlocked,
   })
     .from(shops)
     .orderBy(desc(shops.updatedAt));
@@ -945,4 +946,82 @@ export async function getLeadsStats(): Promise<{ total: number; byStatus: Record
     byStatus[lead.status] = (byStatus[lead.status] || 0) + 1;
   }
   return { total: all.length, byStatus };
+}
+
+// ─── Admin: User Management ───────────────────────────────────────────────────
+
+export async function getAllUsers() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(users).orderBy(desc(users.createdAt));
+}
+
+export async function updateAdminPassword(userId: number, passwordHash: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, userId));
+}
+
+export async function updateUserRole(userId: number, role: 'user' | 'admin' | 'super_admin' | 'customer'): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set({ role, updatedAt: new Date() }).where(eq(users.id, userId));
+}
+
+export async function assignShopToUser(userId: number, shopId: number | null): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set({ shopId: shopId ?? undefined, updatedAt: new Date() }).where(eq(users.id, userId));
+}
+
+// ─── Admin: Shop Management ───────────────────────────────────────────────────
+
+export async function updateShopResultsUnlocked(shopId: number, unlocked: boolean): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(shops).set({ resultsUnlocked: unlocked, updatedAt: new Date() }).where(eq(shops.id, shopId));
+}
+
+// ─── Magic Link Auth ──────────────────────────────────────────────────────────
+
+export async function setMagicLinkToken(userId: number, token: string, expiry: Date): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set({ magicLinkToken: token, magicLinkExpiry: expiry }).where(eq(users.id, userId));
+}
+
+export async function getUserByMagicToken(token: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(users).where(eq(users.magicLinkToken, token)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function clearMagicLinkToken(userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set({ magicLinkToken: null, magicLinkExpiry: null }).where(eq(users.id, userId));
+}
+
+// ─── Portal: Customer Data ────────────────────────────────────────────────────
+
+export async function getPortalData(shopId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const shop = await db.select().from(shops).where(eq(shops.id, shopId)).limit(1);
+  if (!shop[0]) return null;
+
+  const shopAssessments = await db
+    .select()
+    .from(assessments)
+    .where(eq(assessments.shopId, shopId))
+    .orderBy(desc(assessments.createdAt))
+    .limit(10);
+
+  return {
+    shop: shop[0],
+    latestAssessment: shopAssessments[0] ?? null,
+    history: shopAssessments,
+  };
 }

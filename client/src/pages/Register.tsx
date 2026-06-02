@@ -4,20 +4,22 @@ import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, UserPlus, AlertCircle, Loader2, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, UserPlus, AlertCircle, Loader2, CheckCircle2, ShieldCheck, BarChart3 } from 'lucide-react';
 
 export default function Register() {
   const [, navigate] = useLocation();
   const search = useSearch();
   const params = new URLSearchParams(search);
   const codeFromUrl = params.get('code') || '';
+  const prefillEmail = params.get('prefill') || '';
+  const fromQuiz = params.get('from') === 'quiz';
 
   const [inviteCode, setInviteCode] = useState(codeFromUrl);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(decodeURIComponent(prefillEmail));
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
@@ -115,6 +117,20 @@ export default function Register() {
             Create Your Account
           </p>
         </div>
+
+        {/* Quiz welcome banner */}
+        {fromQuiz && (
+          <div className="rounded-xl border border-gold/20 bg-gold/5 px-4 py-3 mb-6 flex items-start gap-3">
+            <BarChart3 size={16} className="text-gold mt-0.5 shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-gold mb-0.5">Your quiz results are waiting!</p>
+              <p className="text-[11px] text-muted-foreground">
+                Create a free account to save your SOS score and track your progress over time.
+                A Scale specialist will review your results and reach out shortly.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Register Card */}
         <div className="rounded-2xl border border-border/30 bg-card/80 backdrop-blur-xl p-8 shadow-2xl shadow-black/20">
@@ -277,7 +293,7 @@ export default function Register() {
             </Button>
           </form>
 
-          <div className="mt-6 pt-5 border-t border-white/[0.06] text-center">
+          <div className="mt-6 pt-5 border-t border-white/[0.06] space-y-2 text-center">
             <p className="text-xs text-muted-foreground">
               Already have an account?{' '}
               <button
@@ -287,6 +303,14 @@ export default function Register() {
                 Sign in
               </button>
             </p>
+            {!fromQuiz && (
+              <p className="text-xs text-muted-foreground">
+                No invite code?{' '}
+                <a href="/quiz" className="text-gold/70 hover:text-gold transition-colors">
+                  Take the free SOS Quiz first →
+                </a>
+              </p>
+            )}
           </div>
         </div>
 

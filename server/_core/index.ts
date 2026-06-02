@@ -9,6 +9,7 @@ import { sdk } from "./sdk";
 import { ENV } from "./env";
 import { COOKIE_NAME } from "../../shared/const";
 import * as db from "../db";
+import bcrypt from "bcryptjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -44,6 +45,23 @@ app.use(
   }),
 );
 
+// ─── Diagnostic endpoint (safe — no secrets exposed) ──────────────────────
+app.get("/api/admin-status", async (_req, res) => {
+  try {
+    const adminUsername = process.env.ADMIN_USERNAME ?? "admin";
+    const user = await db.getUserByUsername(adminUsername);
+    res.json({
+      adminExists: !!user,
+      adminUsername,
+      hasPasswordHash: !!user?.passwordHash,
+      role: user?.role ?? null,
+      dbUrl: (process.env.DATABASE_URL ?? "file:./local.db").replace(/\/\/.*@/, "//***@"),
+    });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // ─── Serve static frontend in production ───────────────────────────────────
 const isProd = ENV.nodeEnv === "production";
 if (isProd) {
@@ -54,9 +72,40 @@ if (isProd) {
   });
 }
 
-app.listen(ENV.port, () => {
-  console.log(`[Server] Running on http://localhost:${ENV.port}`);
-  console.log(`[Server] Mode: ${ENV.nodeEnv}`);
+// ─── Seed / sync admin user on every boot ─────────────────────────────────
+// Always ensures the admin user exists with the correct password.
+// Change credentials via ADMIN_USERNAME / ADMIN_PASSWORD env vars.
+async function seedAdminUser() {
+  try {
+    const adminUsername = process.env.ADMIN_USERNAME ?? "admin";
+    const adminPassword = process.env.ADMIN_PASSWORD ?? "admin123";
+    const passwordHash = await bcrypt.hash(adminPassword, 12);
+    const existing = await db.getUserByUsername(adminUsername);
+    if (!existing) {
+      await db.createUserWithPassword({
+        username: adminUsername,
+        passwordHash,
+        name: "Admin",
+        role: "super_admin",
+      });
+      console.log(`[Seed] Admin user created — username: "${adminUsername}"`);
+    } else {
+      // Always sync the password so env var changes take effect on redeploy
+      await db.updateAdminPassword(existing.id, passwordHash);
+      console.log(`[Seed] Admin password synced — username: "${adminUsername}"`);
+    }
+  } catch (err) {
+    console.error("[Seed] Failed to seed admin user:", err);
+  }
+}
+
+// Seed FIRST, then start listening so the admin user always exists before
+// the server accepts traffic.
+seedAdminUser().then(() => {
+  app.listen(ENV.port, () => {
+    console.log(`[Server] Running on http://localhost:${ENV.port}`);
+    console.log(`[Server] Mode: ${ENV.nodeEnv}`);
+  });
 });
 
 export { app };

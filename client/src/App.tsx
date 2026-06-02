@@ -3,6 +3,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
+import AuthGuard from "./components/AuthGuard";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Hub from "./pages/Hub";
 import Home from "./pages/Home";
@@ -11,17 +12,57 @@ import Dashboard from "./pages/Dashboard";
 import AssessmentDetail from "./pages/AssessmentDetail";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Quiz from "./pages/Quiz";
+import CustomerPortal from "./pages/CustomerPortal";
+import AdminPanel from "./pages/AdminPanel";
 
 function Router() {
   return (
     <Switch>
+      {/* Public routes */}
       <Route path="/" component={Hub} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
-      <Route path="/assessment" component={Home} />
-      <Route path="/assessment/:id" component={AssessmentDetail} />
-      <Route path="/report" component={Report} />
-      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/quiz" component={Quiz} />
+
+      {/* Admin / super_admin only */}
+      <Route path="/assessment">
+        <AuthGuard roles={["admin", "super_admin"]}>
+          <Home />
+        </AuthGuard>
+      </Route>
+      <Route path="/assessment/:id">
+        {(params) => (
+          <AuthGuard roles={["admin", "super_admin"]}>
+            <AssessmentDetail params={params} />
+          </AuthGuard>
+        )}
+      </Route>
+      <Route path="/dashboard">
+        <AuthGuard roles={["admin", "super_admin"]}>
+          <Dashboard />
+        </AuthGuard>
+      </Route>
+      <Route path="/report">
+        <AuthGuard>
+          <Report />
+        </AuthGuard>
+      </Route>
+
+      {/* Customer portal */}
+      <Route path="/portal">
+        <AuthGuard roles={["customer", "admin", "super_admin"]}>
+          <CustomerPortal />
+        </AuthGuard>
+      </Route>
+
+      {/* Super admin only */}
+      <Route path="/admin">
+        <AuthGuard roles={["super_admin"]}>
+          <AdminPanel />
+        </AuthGuard>
+      </Route>
+
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
