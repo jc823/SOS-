@@ -45,6 +45,23 @@ app.use(
   }),
 );
 
+// ─── Diagnostic endpoint (safe — no secrets exposed) ──────────────────────
+app.get("/api/admin-status", async (_req, res) => {
+  try {
+    const adminUsername = process.env.ADMIN_USERNAME ?? "admin";
+    const user = await db.getUserByUsername(adminUsername);
+    res.json({
+      adminExists: !!user,
+      adminUsername,
+      hasPasswordHash: !!user?.passwordHash,
+      role: user?.role ?? null,
+      dbUrl: (process.env.DATABASE_URL ?? "file:./local.db").replace(/\/\/.*@/, "//***@"),
+    });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // ─── Serve static frontend in production ───────────────────────────────────
 const isProd = ENV.nodeEnv === "production";
 if (isProd) {
@@ -82,10 +99,13 @@ async function seedAdminUser() {
   }
 }
 
-app.listen(ENV.port, () => {
-  console.log(`[Server] Running on http://localhost:${ENV.port}`);
-  console.log(`[Server] Mode: ${ENV.nodeEnv}`);
-  seedAdminUser();
+// Seed FIRST, then start listening so the admin user always exists before
+// the server accepts traffic.
+seedAdminUser().then(() => {
+  app.listen(ENV.port, () => {
+    console.log(`[Server] Running on http://localhost:${ENV.port}`);
+    console.log(`[Server] Mode: ${ENV.nodeEnv}`);
+  });
 });
 
 export { app };
