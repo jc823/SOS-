@@ -11,7 +11,7 @@ import { motion } from 'framer-motion';
 import {
   ClipboardCheck, LayoutDashboard, Search,
   LogOut, ArrowRight, Shield, Zap,
-  Loader2, Lock, ChevronRight, ExternalLink,
+  Loader2, Lock, ChevronRight, ExternalLink, ClipboardList,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -70,6 +70,20 @@ const TOOLS: ToolCard[] = [
     accentColor: 'blue',
     available: true,
     stats: 'History · Compare · Timeline',
+    requiresPro: true,
+  },
+
+  // ── Admin tools ─────────────────────────────────────────────────────────────
+  {
+    id: 'tech',
+    title: 'Tech Dashboard',
+    subtitle: 'Team Management',
+    description: 'View and manage your team\'s daily checklists, approve supply orders, and track team performance.',
+    icon: <ClipboardList size={22} />,
+    href: '/tech',
+    accentColor: 'orange',
+    available: true,
+    stats: 'Checklists · Supply Orders · Team',
     requiresPro: true,
   },
 

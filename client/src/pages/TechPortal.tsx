@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import {
   ClipboardCheck, ShoppingCart, BarChart3, LogOut,
   Loader2, Plus, CheckCircle2, Circle, Send, Package,
-  ChevronDown, ChevronUp, Trash2,
+  ChevronDown, ChevronUp, Trash2, ThumbsUp, ThumbsDown,
+  ArrowLeft,
 } from "lucide-react";
 
 type Tab = "checklist" | "supplies" | "stats";
@@ -49,9 +50,13 @@ export default function TechPortal() {
   const [orderSubmitting, setOrderSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
 
-  const supplyOrdersQuery = trpc.tech.getMySupplyOrders.useQuery(undefined, {
-    enabled: !loading && !!user,
-  });
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+
+  // Techs see their own orders; admins see all shop orders
+  const myOrdersQuery   = trpc.tech.getMySupplyOrders.useQuery(undefined, { enabled: !loading && !!user && !isAdmin });
+  const shopOrdersQuery = trpc.tech.getShopSupplyOrders.useQuery(undefined, { enabled: !loading && !!user && isAdmin });
+  const supplyOrdersQuery = isAdmin ? shopOrdersQuery : myOrdersQuery;
+
   const createOrder = trpc.tech.createSupplyOrder.useMutation({
     onSuccess: () => {
       setOrderSuccess(true);
@@ -63,6 +68,10 @@ export default function TechPortal() {
     },
   });
 
+  const updateStatus = trpc.tech.updateOrderStatus.useMutation({
+    onSuccess: () => supplyOrdersQuery.refetch(),
+  });
+
   if (loading) {
     return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><Loader2 size={24} className="animate-spin text-gold" /></div>;
   }
@@ -70,7 +79,7 @@ export default function TechPortal() {
 
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
   const completedPct = Math.round((checked.size / DEFAULT_ITEMS.length) * 100);
-  const levelLabel = user.techLevel ? LEVEL_LABEL[user.techLevel] ?? `Level ${user.techLevel}` : "Team Member";
+  const levelLabel = isAdmin ? "Manager View" : (user.techLevel ? LEVEL_LABEL[user.techLevel] ?? `Level ${user.techLevel}` : "Team Member");
 
   function toggleItem(id: string) {
     setChecked(prev => {
@@ -130,9 +139,16 @@ export default function TechPortal() {
               {levelLabel}
             </span>
           </div>
-          <button onClick={() => logout()} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-white transition-colors">
-            <LogOut size={12} /> Sign out
-          </button>
+          <div className="flex items-center gap-3">
+            {isAdmin && (
+              <button onClick={() => navigate("/")} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-white transition-colors">
+                <ArrowLeft size={12} /> Hub
+              </button>
+            )}
+            <button onClick={() => logout()} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-white transition-colors">
+              <LogOut size={12} /> Sign out
+            </button>
+          </div>
         </div>
       </header>
 
@@ -275,9 +291,11 @@ export default function TechPortal() {
               </div>
             )}
 
-            {/* Past orders */}
+            {/* Orders list */}
             <div className="space-y-2">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Your Orders</h3>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                {isAdmin ? "All Shop Orders" : "Your Orders"}
+              </h3>
               {supplyOrdersQuery.isLoading && <div className="text-sm text-muted-foreground">Loading…</div>}
               {(supplyOrdersQuery.data ?? []).length === 0 && !supplyOrdersQuery.isLoading && (
                 <div className="bg-white/[0.03] border border-white/8 rounded-xl px-5 py-8 text-center text-sm text-muted-foreground">
@@ -295,14 +313,55 @@ export default function TechPortal() {
                       {order.status}
                     </span>
                   </div>
-                  <ul className="space-y-1">
+                  <ul className="space-y-1 mb-2">
                     {(Array.isArray(order.items) ? order.items : []).map((item: any, i: number) => (
                       <li key={i} className="text-sm text-white/70">
                         {item.qty} {item.unit} — {item.name}
                       </li>
                     ))}
                   </ul>
-                  {order.notes && <p className="text-xs text-muted-foreground mt-2 italic">"{order.notes}"</p>}
+                  {order.notes && <p className="text-xs text-muted-foreground italic mb-2">"{order.notes}"</p>}
+                  {/* Admin approve/reject buttons */}
+                  {isAdmin && order.status === "pending" && (
+                    <div className="flex gap-2 mt-2 pt-2 border-t border-white/5">
+                      <button
+                        onClick={() => updateStatus.mutate({ orderId: order.id, status: "approved" })}
+                        disabled={updateStatus.isPending}
+                        className="flex items-center gap-1.5 text-xs font-semibold text-green-400 hover:text-green-300 transition-colors disabled:opacity-40"
+                      >
+                        <ThumbsUp size={13} /> Approve
+                      </button>
+                      <button
+                        onClick={() => updateStatus.mutate({ orderId: order.id, status: "rejected" })}
+                        disabled={updateStatus.isPending}
+                        className="flex items-center gap-1.5 text-xs font-semibold text-red-400 hover:text-red-300 transition-colors disabled:opacity-40"
+                      >
+                        <ThumbsDown size={13} /> Reject
+                      </button>
+                    </div>
+                  )}
+                  {isAdmin && order.status === "approved" && (
+                    <div className="flex gap-2 mt-2 pt-2 border-t border-white/5">
+                      <button
+                        onClick={() => updateStatus.mutate({ orderId: order.id, status: "ordered" })}
+                        disabled={updateStatus.isPending}
+                        className="text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors"
+                      >
+                        Mark Ordered
+                      </button>
+                    </div>
+                  )}
+                  {isAdmin && order.status === "ordered" && (
+                    <div className="flex gap-2 mt-2 pt-2 border-t border-white/5">
+                      <button
+                        onClick={() => updateStatus.mutate({ orderId: order.id, status: "delivered" })}
+                        disabled={updateStatus.isPending}
+                        className="text-xs font-semibold text-green-400 hover:text-green-300 transition-colors"
+                      >
+                        Mark Delivered
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
