@@ -1,7 +1,7 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, staffProcedure, adminProcedure, superAdminProcedure, proProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, staffProcedure, adminProcedure, superAdminProcedure, proProcedure, shopManagerProcedure, router } from "./_core/trpc";
 import { sdk } from "./_core/sdk";
 import { z } from "zod";
 import * as db from "./db";
@@ -2213,6 +2213,16 @@ Be realistic and specific to this exact market. Use your knowledge of US demogra
         return { success: true };
       }),
 
+    updateUserTechPermissions: superAdminProcedure
+      .input(z.object({
+        userId: z.number(),
+        permissions: z.record(z.string(), z.boolean()),
+      }))
+      .mutation(async ({ input }) => {
+        await db.updateUserTechPermissions(input.userId, input.permissions);
+        return { success: true };
+      }),
+
     updateShopBranding: superAdminProcedure
       .input(z.object({
         shopId: z.number(),
@@ -2394,6 +2404,33 @@ Do not use bullet points unless specifically asked. Write in plain paragraphs.`;
 
   // ─── Tech Portal ─────────────────────────────────────────────────────────
   tech: router({
+    // Checklist template management (shop managers + admins)
+    getChecklistTemplate: shopManagerProcedure
+      .input(z.object({ shopId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        // Scope: shop managers can only access their own shop
+        if (ctx.user.role === "shop_manager" && ctx.user.shopId !== input.shopId) {
+          throw new Error("Access denied");
+        }
+        return db.getChecklistTemplate(input.shopId);
+      }),
+
+    saveChecklistTemplate: shopManagerProcedure
+      .input(z.object({
+        shopId: z.number(),
+        name: z.string(),
+        items: z.array(z.object({
+          id: z.string(),
+          label: z.string(),
+          category: z.string(),
+          requiredLevel: z.number().optional(),
+        })),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role === "shop_manager" && ctx.user.shopId !== input.shopId) throw new Error("Access denied");
+        await db.saveChecklistTemplate(input.shopId, input.name, input.items, ctx.user.id);
+        return { success: true };
+      }),
     getMySupplyOrders: protectedProcedure.query(async ({ ctx }) => {
       return db.getSupplyOrdersByUser(ctx.user.id);
     }),

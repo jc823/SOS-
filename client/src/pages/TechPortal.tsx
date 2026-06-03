@@ -43,6 +43,11 @@ export default function TechPortal() {
   const [tab, setTab] = useState<Tab>("checklist");
   const [checked, setChecked] = useState<Set<string>>(new Set());
 
+  // Editable checklist state (admin only)
+  const [editingChecklist, setEditingChecklist] = useState(false);
+  const [editItems, setEditItems] = useState<Array<{id: string; label: string; category: string}>>([]);
+  const [checklistName, setChecklistName] = useState("Daily Checklist");
+
   // Supply order state
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [orderItems, setOrderItems] = useState([{ name: "", qty: "1", unit: "units", notes: "" }]);
@@ -50,7 +55,20 @@ export default function TechPortal() {
   const [orderSubmitting, setOrderSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'shop_manager';
+  const shopId = (user as any)?.shopId ?? null;
+
+  // Load custom checklist template if one exists
+  const checklistQuery = trpc.tech.getChecklistTemplate.useQuery(
+    { shopId: shopId ?? 0 },
+    { enabled: !!shopId }
+  );
+  const saveChecklist = trpc.tech.saveChecklistTemplate.useMutation({
+    onSuccess: () => { checklistQuery.refetch(); setEditingChecklist(false); },
+  });
+
+  const activeItems = checklistQuery.data?.items as Array<{id: string; label: string; category: string}> | undefined;
+  const checklistItems = activeItems?.length ? activeItems : DEFAULT_ITEMS;
 
   // Techs see their own orders; admins see all shop orders
   const myOrdersQuery   = trpc.tech.getMySupplyOrders.useQuery(undefined, { enabled: !loading && !!user && !isAdmin });
@@ -78,8 +96,9 @@ export default function TechPortal() {
   if (!user) { navigate("/login"); return null; }
 
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-  const completedPct = Math.round((checked.size / DEFAULT_ITEMS.length) * 100);
-  const levelLabel = isAdmin ? "Manager View" : (user.techLevel ? LEVEL_LABEL[user.techLevel] ?? `Level ${user.techLevel}` : "Team Member");
+  const completedPct = Math.round((checked.size / checklistItems.length) * 100);
+  const levelLabel = isAdmin ? "Manager View" : ((user as any).techLevel ? LEVEL_LABEL[(user as any).techLevel] ?? `Level ${(user as any).techLevel}` : "Team Member");
+  const categories = [...new Set(checklistItems.map((i: any) => i.category))];
 
   function toggleItem(id: string) {
     setChecked(prev => {
@@ -116,7 +135,6 @@ export default function TechPortal() {
   };
 
   // Group checklist by category
-  const categories = [...new Set(DEFAULT_ITEMS.map(i => i.category))];
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
@@ -181,52 +199,96 @@ export default function TechPortal() {
         {/* ── Checklist Tab ── */}
         {tab === "checklist" && (
           <div className="space-y-4">
-            {/* Progress */}
-            <div className="bg-white/[0.03] border border-white/8 rounded-xl p-5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-bold">Today's Progress</span>
-                <span className="text-sm font-mono font-bold" style={{ color: branding.brandColor }}>
-                  {checked.size}/{DEFAULT_ITEMS.length}
-                </span>
-              </div>
-              <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                <div className="h-full rounded-full transition-all duration-500"
-                  style={{ width: `${completedPct}%`, background: branding.brandColor }} />
-              </div>
-              {completedPct === 100 && (
-                <p className="text-xs mt-2 font-medium" style={{ color: branding.brandColor }}>
-                  ✓ All tasks complete — great work!
-                </p>
-              )}
-            </div>
-
-            {/* Items grouped by category */}
-            {categories.map(cat => {
-              const items = DEFAULT_ITEMS.filter(i => i.category === cat);
-              return (
-                <div key={cat} className="bg-white/[0.03] border border-white/8 rounded-xl overflow-hidden">
-                  <div className="px-5 py-3 border-b border-white/5">
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{cat}</h3>
-                  </div>
-                  <div className="divide-y divide-white/5">
-                    {items.map(item => {
-                      const done = checked.has(item.id);
-                      return (
-                        <button key={item.id} onClick={() => toggleItem(item.id)}
-                          className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-white/[0.02] transition-colors text-left">
-                          {done
-                            ? <CheckCircle2 size={18} style={{ color: branding.brandColor }} className="shrink-0" />
-                            : <Circle size={18} className="text-white/20 shrink-0" />}
-                          <span className={`text-sm transition-colors ${done ? "text-white/40 line-through" : "text-white/80"}`}>
-                            {item.label}
-                          </span>
-                        </button>
-                      );
-                    })}
+            {/* Admin edit mode */}
+            {isAdmin && editingChecklist ? (
+              <div className="bg-white/[0.03] border border-gold/20 rounded-xl p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold">Edit Checklist</h3>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setEditingChecklist(false)} className="h-7 text-xs border-white/10">Cancel</Button>
+                    <Button size="sm" onClick={() => saveChecklist.mutate({ shopId, name: checklistName, items: editItems })}
+                      disabled={saveChecklist.isPending} className="h-7 text-xs bg-gold text-black font-bold hover:bg-gold/90">
+                      {saveChecklist.isPending ? "Saving…" : "Save"}
+                    </Button>
                   </div>
                 </div>
-              );
-            })}
+                <Input value={checklistName} onChange={e => setChecklistName(e.target.value)}
+                  placeholder="Checklist name" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
+                {editItems.map((item, i) => (
+                  <div key={item.id} className="flex gap-2 items-start">
+                    <div className="flex-1 space-y-1.5">
+                      <Input value={item.label} onChange={e => setEditItems(prev => prev.map((it, idx) => idx === i ? {...it, label: e.target.value} : it))}
+                        placeholder="Task label" className="bg-white/5 border-white/10 text-white h-8 text-xs" />
+                      <Input value={item.category} onChange={e => setEditItems(prev => prev.map((it, idx) => idx === i ? {...it, category: e.target.value} : it))}
+                        placeholder="Category (e.g. Pre-service)" className="bg-white/5 border-white/10 text-white h-8 text-xs" />
+                    </div>
+                    <button onClick={() => setEditItems(prev => prev.filter((_, idx) => idx !== i))}
+                      className="text-red-400/60 hover:text-red-400 mt-1"><Trash2 size={14} /></button>
+                  </div>
+                ))}
+                <button onClick={() => setEditItems(prev => [...prev, {id: Date.now().toString(), label: "", category: "Service"}])}
+                  className="text-xs font-medium flex items-center gap-1 hover:text-white transition-colors" style={{ color: branding.brandColor }}>
+                  <Plus size={12} /> Add item
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Progress */}
+                <div className="bg-white/[0.03] border border-white/8 rounded-xl p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-bold">Today's Progress</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-mono font-bold" style={{ color: branding.brandColor }}>
+                        {checked.size}/{checklistItems.length}
+                      </span>
+                      {isAdmin && (
+                        <button onClick={() => { setEditItems([...checklistItems]); setEditingChecklist(true); }}
+                          className="text-[10px] text-muted-foreground hover:text-white border border-white/10 rounded px-2 py-0.5">
+                          Edit
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${completedPct}%`, background: branding.brandColor }} />
+                  </div>
+                  {completedPct === 100 && (
+                    <p className="text-xs mt-2 font-medium" style={{ color: branding.brandColor }}>
+                      ✓ All tasks complete — great work!
+                    </p>
+                  )}
+                </div>
+
+                {/* Items grouped by category */}
+                {categories.map(cat => {
+                  const items = checklistItems.filter((i: any) => i.category === cat);
+                  return (
+                    <div key={cat} className="bg-white/[0.03] border border-white/8 rounded-xl overflow-hidden">
+                      <div className="px-5 py-3 border-b border-white/5">
+                        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{cat}</h3>
+                      </div>
+                      <div className="divide-y divide-white/5">
+                        {items.map((item: any) => {
+                          const done = checked.has(item.id);
+                          return (
+                            <button key={item.id} onClick={() => toggleItem(item.id)}
+                              className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-white/[0.02] transition-colors text-left">
+                              {done
+                                ? <CheckCircle2 size={18} style={{ color: branding.brandColor }} className="shrink-0" />
+                                : <Circle size={18} className="text-white/20 shrink-0" />}
+                              <span className={`text-sm transition-colors ${done ? "text-white/40 line-through" : "text-white/80"}`}>
+                                {item.label}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            )}
           </div>
         )}
 

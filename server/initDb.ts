@@ -494,6 +494,7 @@ export async function initializeDatabase(): Promise<void> {
 
     // Add new columns to existing tables if they don't exist
     await sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "techLevel" integer`;
+    await sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "techPermissions" jsonb`;
     await sql`ALTER TABLE "shops" ADD COLUMN IF NOT EXISTS "brandName" text`;
     await sql`ALTER TABLE "shops" ADD COLUMN IF NOT EXISTS "brandColor" text`;
     await sql`ALTER TABLE "shops" ADD COLUMN IF NOT EXISTS "brandAccentColor" text`;
