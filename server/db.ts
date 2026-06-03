@@ -24,6 +24,7 @@ import {
   clientTasks, InsertClientTask,
   actionPlanProgress,
   supplyOrders,
+  checklistTemplates,
   levelPermissions,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -1346,4 +1347,33 @@ export async function updateUserTechLevel(userId: number, techLevel: number | nu
   const db = await getDb();
   if (!db) return;
   await db.update(users).set({ techLevel, updatedAt: new Date() }).where(eq(users.id, userId));
+}
+
+// ─── Individual Tech Permission Overrides ────────────────────────────────────
+
+export async function updateUserTechPermissions(userId: number, permissions: Record<string, boolean>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set({ techPermissions: permissions, updatedAt: new Date() } as any).where(eq(users.id, userId));
+}
+
+// ─── Checklist Template Management ───────────────────────────────────────────
+
+export async function getChecklistTemplate(shopId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(checklistTemplates)
+    .where(and(eq(checklistTemplates.shopId, shopId), eq(checklistTemplates.isActive, true)))
+    .orderBy(desc(checklistTemplates.updatedAt))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function saveChecklistTemplate(shopId: number, name: string, items: any[], createdById: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  // Deactivate existing templates for this shop
+  await db.update(checklistTemplates).set({ isActive: false }).where(eq(checklistTemplates.shopId, shopId));
+  // Insert new active template
+  await db.insert(checklistTemplates).values({ shopId, name, items, isActive: true, createdById });
 }

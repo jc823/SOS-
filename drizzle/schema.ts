@@ -27,6 +27,7 @@ export const users = pgTable("users", {
   subscriptionId: text("subscriptionId"),
   subscriptionPeriodEnd: timestamp("subscriptionPeriodEnd"),
   techLevel: integer("techLevel"),
+  techPermissions: jsonb("techPermissions"), // individual overrides over level defaults
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
