@@ -1291,6 +1291,21 @@ export async function getSupplyOrdersByUser(userId: number) {
   return db.select().from(supplyOrders).where(eq(supplyOrders.requestedById, userId)).orderBy(desc(supplyOrders.createdAt)).limit(50);
 }
 
+export async function getUsersByShop(shopId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    id: users.id,
+    name: users.name,
+    username: users.username,
+    email: users.email,
+    role: users.role,
+    techLevel: users.techLevel,
+    techPermissions: users.techPermissions,
+    shopId: users.shopId,
+  }).from(users).where(eq(users.shopId, shopId)).orderBy(users.name);
+}
+
 export async function getSupplyOrdersByShop(shopId: number) {
   const db = await getDb();
   if (!db) return [];
