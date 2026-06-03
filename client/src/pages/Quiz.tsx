@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowRight, ChevronLeft, BarChart3, DollarSign, Trophy } from "lucide-react";
+import { ArrowRight, ChevronLeft, BarChart3, DollarSign, Trophy, Loader2 } from "lucide-react";
 import { BOOKING_URL } from "@/const";
 import {
   QUIZ_QUESTIONS,
@@ -12,6 +12,7 @@ import {
   type QuizResult,
 } from "@/lib/quiz-engine";
 import { sendLeadToGHL } from "@/lib/webhooks";
+import { trpc } from "@/lib/trpc";
 
 type Step = "quiz" | "gate" | "results";
 
@@ -45,6 +46,9 @@ export default function Quiz() {
   const [gateLoading, setGateLoading] = useState(false);
 
   const [result, setResult] = useState<QuizResult | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
+
+  const quizRegister = trpc.auth.quizRegister.useMutation();
 
   const phaseQuestions = phase === 1
     ? QUIZ_QUESTIONS.slice(0, GATE_AFTER_INDEX + 1)
@@ -98,10 +102,13 @@ export default function Quiz() {
     setGateLoading(true);
     setGateError("");
 
-    // Compute partial score from phase 1 answers
     const phase1Score = Object.values(answers).reduce((s, v) => s + v, 0);
 
-    await sendLeadToGHL({ name, email, phone, partialScore: phase1Score });
+    // Fire GHL webhook + silently create/login account
+    await Promise.allSettled([
+      sendLeadToGHL({ name, email, phone, partialScore: phase1Score }),
+      quizRegister.mutateAsync({ name, email, phone, partialScore: phase1Score }),
+    ]);
 
     setGateLoading(false);
     setPhase(2);
@@ -245,6 +252,15 @@ export default function Quiz() {
     const gradeColor = GRADE_COLORS[result.grade] ?? "text-white";
     const bandColor = BAND_COLORS[result.band] ?? "text-white";
 
+    // Auto-redirect to portal after 6 seconds (account was created at gate)
+    useEffect(() => {
+      const timer = setTimeout(() => {
+        setRedirecting(true);
+        setTimeout(() => navigate("/portal"), 1500);
+      }, 6000);
+      return () => clearTimeout(timer);
+    }, []);
+
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white">
         <div className="max-w-2xl mx-auto px-4 py-12">
@@ -298,6 +314,30 @@ export default function Quiz() {
             </div>
           </div>
 
+          {/* Portal redirect notice */}
+          <div className={`border rounded-2xl p-5 mb-6 text-center transition-all ${redirecting ? "border-gold/40 bg-gold/5" : "border-white/8 bg-white/[0.03]"}`}>
+            {redirecting ? (
+              <div className="flex items-center justify-center gap-2 text-gold font-semibold text-sm">
+                <Loader2 size={16} className="animate-spin" />
+                Taking you to your portal…
+              </div>
+            ) : (
+              <>
+                <p className="text-sm font-bold mb-1">✓ Your account is ready</p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  We saved your results. You'll be redirected to your portal in a few seconds.
+                </p>
+                <Button
+                  size="sm"
+                  className="bg-gold text-black font-bold hover:bg-gold/90 text-xs h-8 px-4"
+                  onClick={() => navigate("/portal")}
+                >
+                  Go to My Portal Now <ArrowRight size={12} className="ml-1" />
+                </Button>
+              </>
+            )}
+          </div>
+
           {/* CTA */}
           <div className="bg-white/[0.03] border border-gold/20 rounded-2xl p-8 text-center mb-6">
             <h3 className="text-xl font-black mb-3">Ready to close the gap?</h3>
@@ -312,15 +352,12 @@ export default function Quiz() {
             </Button>
           </div>
 
-          {/* Account prompt */}
+          {/* Login link */}
           <div className="text-center text-sm text-muted-foreground">
-            Want to track your progress over time?{" "}
-            <a
-              href={`/register?from=quiz&prefill=${encodeURIComponent(email)}`}
-              className="text-gold hover:underline"
-            >
-              Create a free account to save your results →
-            </a>
+            Already have an account?{" "}
+            <button onClick={() => navigate("/portal")} className="text-gold hover:underline">
+              Go to your portal →
+            </button>
           </div>
         </div>
       </div>

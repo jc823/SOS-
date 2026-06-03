@@ -103,6 +103,64 @@ export const appRouter = router({
         return { success: true, user: { id: user.id, name: user.name, username: user.username, role: user.role } };
       }),
 
+    // Open registration — no invite code needed
+    openRegister: publicProcedure
+      .input(z.object({
+        name: z.string().min(1).max(100),
+        email: z.string().email(),
+        password: z.string().min(6).max(100),
+        username: z.string().min(3).max(50).regex(/^[a-zA-Z0-9_.-]+$/).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // Check if email already registered
+        const byEmail = await db.getUserByEmail(input.email);
+        if (byEmail) throw new Error("An account with this email already exists. Please log in instead.");
+        // Build username from email prefix if not provided
+        const baseUsername = input.username ?? input.email.split('@')[0].replace(/[^a-zA-Z0-9_.-]/g, '').slice(0, 30);
+        let username = baseUsername;
+        let attempt = 0;
+        while (await db.getUserByUsername(username)) {
+          username = `${baseUsername}${++attempt}`;
+        }
+        const passwordHash = await bcrypt.hash(input.password, 12);
+        const userId = await db.createUserWithPassword({ username, passwordHash, name: input.name, email: input.email, role: 'customer' });
+        const user = await db.getUserById(userId);
+        if (!user) throw new Error("Failed to create account");
+        const sessionToken = await sdk.createSessionToken(user.openId, { name: user.name || username, expiresInMs: ONE_YEAR_MS });
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+        return { success: true, user: { id: user.id, name: user.name, username: user.username, role: user.role } };
+      }),
+
+    // Quiz quick-register: from gate form, create/login silently
+    quizRegister: publicProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        email: z.string().email(),
+        phone: z.string(),
+        partialScore: z.number(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // If email already exists, just log them in
+        let user = await db.getUserByEmail(input.email);
+        if (!user) {
+          const baseUsername = input.email.split('@')[0].replace(/[^a-zA-Z0-9_.-]/g, '').slice(0, 30);
+          let username = baseUsername;
+          let attempt = 0;
+          while (await db.getUserByUsername(username)) { username = `${baseUsername}${++attempt}`; }
+          const tempPassword = crypto.randomBytes(16).toString('hex');
+          const passwordHash = await bcrypt.hash(tempPassword, 10);
+          const userId = await db.createUserWithPassword({ username, passwordHash, name: input.name, email: input.email, role: 'customer' });
+          user = await db.getUserById(userId) ?? null;
+        }
+        if (!user) throw new Error("Failed to create account");
+        await db.upsertUser({ openId: user.openId, lastSignedIn: new Date() });
+        const sessionToken = await sdk.createSessionToken(user.openId, { name: user.name || '', expiresInMs: ONE_YEAR_MS });
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+        return { success: true, isNew: !await db.getUserByEmail(input.email) };
+      }),
+
     // Magic link: generate token, log URL (wire email service later)
     sendMagicLink: publicProcedure
       .input(z.object({ email: z.string().email() }))
