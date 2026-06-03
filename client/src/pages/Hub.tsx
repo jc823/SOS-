@@ -128,10 +128,11 @@ export default function Hub() {
   const publicStatsQuery = trpc.publicStats.get.useQuery(undefined, { enabled: !isAuthenticated && !loading });
   const publicStats = publicStatsQuery.data;
 
-  // Redirect techs and customers away from Hub
+  // Redirect techs, customers, and shop managers away from Hub
   if (!loading && user) {
     if ((user as any).techLevel) { navigate('/tech'); return null; }
     if (user.role === 'customer') { navigate('/portal'); return null; }
+    if (user.role === 'shop_manager') { navigate('/shop-admin'); return null; }
   }
 
   if (loading) {

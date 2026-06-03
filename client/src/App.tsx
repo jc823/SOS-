@@ -19,6 +19,7 @@ import AdminPanel from "./pages/AdminPanel";
 import Pricing from "./pages/Pricing";
 import BillingSuccess from "./pages/BillingSuccess";
 import TechPortal from "./pages/TechPortal";
+import ShopManagerPanel from "./pages/ShopManagerPanel";
 
 function Router() {
   return (
@@ -66,6 +67,13 @@ function Router() {
       <Route path="/tech">
         <AuthGuard>
           <TechPortal />
+        </AuthGuard>
+      </Route>
+
+      {/* Shop manager panel — shop_manager, admin, super_admin */}
+      <Route path="/shop-admin">
+        <AuthGuard roles={["shop_manager", "admin", "super_admin"]}>
+          <ShopManagerPanel />
         </AuthGuard>
       </Route>
 

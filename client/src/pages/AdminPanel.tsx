@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -9,10 +9,10 @@ import {
   Shield, Users, Store, LogOut, Loader2, ToggleLeft, ToggleRight,
   ChevronLeft, Link2, Plus, Trash2, CheckCircle2, Copy, Ticket,
   Brain, AlertTriangle, RefreshCw, TrendingUp, Settings, BarChart3,
-  UserCog, Mail, Calendar, Hash, Wrench, Palette, ShoppingCart,
+  UserCog, Mail, Calendar, Hash, Wrench, Palette, ShoppingCart, ClipboardList,
 } from "lucide-react";
 
-type UserRole = "user" | "admin" | "super_admin" | "customer";
+type UserRole = "user" | "admin" | "super_admin" | "customer" | "shop_manager";
 type Tab = "overview" | "users" | "shops" | "invites" | "settings" | "ai";
 
 const PERMISSIONS_CONFIG = [
@@ -271,7 +271,8 @@ export default function AdminPanel() {
                     <select value={cuRole} onChange={e => setCuRole(e.target.value as UserRole)}
                       className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gold/50 h-10">
                       <option value="customer">customer</option>
-                      <option value="user">user</option>
+                      <option value="user">user (tech)</option>
+                      <option value="shop_manager">shop_manager</option>
                       <option value="admin">admin</option>
                       <option value="super_admin">super_admin</option>
                     </select>
@@ -474,12 +475,27 @@ export default function AdminPanel() {
               </div>
             )}
 
+            {/* Checklist Templates */}
+            {allShops.length > 0 && (
+              <div className="bg-white/[0.03] border border-white/8 rounded-xl p-6 space-y-4">
+                <div>
+                  <h2 className="text-sm font-bold flex items-center gap-2"><ClipboardList size={14} className="text-gold" /> Daily Checklist Templates</h2>
+                  <p className="text-xs text-muted-foreground mt-1">Edit the checklist your techs see each day. Each shop has its own template.</p>
+                </div>
+                {allShops.map(s => (
+                  <ChecklistEditor key={s.id} shop={s} />
+                ))}
+              </div>
+            )}
+
             {/* Level Permissions */}
             {allShops.length > 0 && (
               <div className="bg-white/[0.03] border border-white/8 rounded-xl p-6">
                 <h2 className="text-sm font-bold flex items-center gap-2 mb-1"><Wrench size={14} className="text-gold" /> Tech Level Permissions</h2>
                 <p className="text-xs text-muted-foreground mb-4">Define what each tech level can do. Select a shop to configure.</p>
-                <LevelPermissionsEditor shopId={allShops[0].id} />
+                <ShopSelector shops={allShops}>
+                  {(shopId) => <LevelPermissionsEditor shopId={shopId} />}
+                </ShopSelector>
               </div>
             )}
           </div>
@@ -502,14 +518,17 @@ export default function AdminPanel() {
                   <select value={newRole} onChange={e => setNewRole(e.target.value as UserRole)}
                     className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gold/50">
                     <option value="customer">customer</option>
-                    <option value="user">user</option>
+                    <option value="user">user (tech)</option>
+                    <option value="shop_manager">shop_manager</option>
                     <option value="admin">admin</option>
                     <option value="super_admin">super_admin</option>
                   </select>
                 </div>
-                {newRole === "customer" && (
+                {(newRole === "customer" || newRole === "shop_manager" || newRole === "user") && (
                   <div>
-                    <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 block">Link to Shop (optional)</Label>
+                    <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 block">
+                      {newRole === "customer" ? "Link to Shop (optional)" : "Assign to Shop"}
+                    </Label>
                     <select value={newShopId} onChange={e => setNewShopId(e.target.value)}
                       className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gold/50">
                       <option value="">— No shop yet —</option>
@@ -523,7 +542,7 @@ export default function AdminPanel() {
                     className="bg-white/5 border-white/10 text-white h-10" />
                 </div>
               </div>
-              <Button onClick={() => createInvite.mutate({ role: newRole, shopId: newRole === "customer" && newShopId ? Number(newShopId) : undefined, expiresInDays: newExpiry ? Number(newExpiry) : 30 })}
+              <Button onClick={() => createInvite.mutate({ role: newRole, shopId: (newRole === "customer" || newRole === "shop_manager" || newRole === "user") && newShopId ? Number(newShopId) : undefined, expiresInDays: newExpiry ? Number(newExpiry) : 30 })}
                 disabled={createInvite.isPending} className="bg-gold text-black font-bold hover:bg-gold/90 h-10 px-6">
                 {createInvite.isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : <Plus size={14} className="mr-2" />}
                 Generate Code
@@ -848,6 +867,148 @@ function LevelPermissionsEditor({ shopId }: { shopId: number }) {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ─── Shop Selector wrapper ─────────────────────────────────────────────────────
+function ShopSelector({ shops, children }: { shops: any[]; children: (shopId: number) => React.ReactNode }) {
+  const [selectedId, setSelectedId] = useState<number>(shops[0]?.id ?? 0);
+  return (
+    <div className="space-y-4">
+      {shops.length > 1 && (
+        <div>
+          <label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 block">Shop</label>
+          <select
+            value={selectedId}
+            onChange={e => setSelectedId(Number(e.target.value))}
+            className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gold/50"
+          >
+            {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+      )}
+      {selectedId ? children(selectedId) : null}
+    </div>
+  );
+}
+
+// ─── Checklist Template Editor ─────────────────────────────────────────────────
+const CHECKLIST_DEFAULT_ITEMS = [
+  { id: "1", label: "Inspect vehicle for pre-existing damage", category: "Pre-service" },
+  { id: "2", label: "Confirm service agreement with customer", category: "Pre-service" },
+  { id: "3", label: "Set up work area and gather supplies", category: "Setup" },
+  { id: "4", label: "Wash and decontaminate vehicle", category: "Service" },
+  { id: "5", label: "Polish / correct paint as needed", category: "Service" },
+  { id: "6", label: "Apply protection (ceramic / sealant / wax)", category: "Service" },
+  { id: "7", label: "Clean interior — vacuum, wipe down surfaces", category: "Service" },
+  { id: "8", label: "Final inspection walkthrough", category: "Quality Check" },
+  { id: "9", label: "Photo documentation (before/after)", category: "Quality Check" },
+  { id: "10", label: "Clean up work area", category: "Wrap-up" },
+];
+
+function ChecklistEditor({ shop }: { shop: { id: number; name: string } }) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState("Daily Checklist");
+  const [items, setItems] = useState<Array<{ id: string; label: string; category: string; requiredLevel?: number }>>([]);
+
+  const query = trpc.tech.getChecklistTemplate.useQuery({ shopId: shop.id });
+  const save  = trpc.tech.saveChecklistTemplate.useMutation({ onSuccess: () => { query.refetch(); setEditing(false); } });
+
+  const activeItems = (query.data?.items as typeof CHECKLIST_DEFAULT_ITEMS | undefined);
+  const displayItems = activeItems?.length ? activeItems : CHECKLIST_DEFAULT_ITEMS;
+
+  function startEditing() {
+    setItems(displayItems.map(i => ({ ...i })));
+    setName((query.data as any)?.name ?? "Daily Checklist");
+    setEditing(true);
+  }
+
+  function addItem() {
+    setItems(prev => [...prev, { id: `new_${Date.now()}`, label: "", category: "Service" }]);
+  }
+
+  function removeItem(id: string) {
+    setItems(prev => prev.filter(i => i.id !== id));
+  }
+
+  function updateItem(id: string, field: string, value: string | number | undefined) {
+    setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
+  }
+
+  return (
+    <div className="border border-white/8 rounded-xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
+        <div>
+          <span className="text-xs font-bold">{shop.name}</span>
+          <span className="text-[10px] text-muted-foreground ml-2">· {displayItems.length} items</span>
+        </div>
+        {!editing ? (
+          <Button size="sm" onClick={startEditing} className="h-7 px-3 text-[10px] bg-gold text-black font-bold hover:bg-gold/90">
+            Edit
+          </Button>
+        ) : (
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setEditing(false)} className="h-7 text-[10px] border-white/10">Cancel</Button>
+            <Button size="sm" onClick={() => save.mutate({ shopId: shop.id, name, items })} disabled={save.isPending}
+              className="h-7 px-3 text-[10px] bg-gold text-black font-bold hover:bg-gold/90">
+              {save.isPending ? <Loader2 size={10} className="animate-spin" /> : "Save"}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {editing ? (
+        <div className="p-4 space-y-3">
+          <Input value={name} onChange={e => setName(e.target.value)}
+            placeholder="Checklist name" className="bg-white/5 border-white/10 text-white h-8 text-xs" />
+          <div className="space-y-2">
+            {items.map(item => (
+              <div key={item.id} className="flex gap-2 items-center">
+                <div className="flex-1 grid grid-cols-3 gap-1.5">
+                  <Input
+                    placeholder="Task description"
+                    value={item.label}
+                    onChange={e => updateItem(item.id, "label", e.target.value)}
+                    className="bg-white/5 border-white/10 text-white h-7 text-xs col-span-1"
+                  />
+                  <Input
+                    placeholder="Category"
+                    value={item.category}
+                    onChange={e => updateItem(item.id, "category", e.target.value)}
+                    className="bg-white/5 border-white/10 text-white h-7 text-xs"
+                  />
+                  <select
+                    value={item.requiredLevel ?? ""}
+                    onChange={e => updateItem(item.id, "requiredLevel", e.target.value ? Number(e.target.value) : undefined)}
+                    className="bg-white/5 border border-white/10 rounded-md px-2 h-7 text-xs text-white focus:outline-none focus:border-gold/50"
+                  >
+                    <option value="">All levels</option>
+                    <option value="1">Level 1+ (Apprentice)</option>
+                    <option value="2">Level 2+ (Technician)</option>
+                    <option value="3">Level 3 (Lead Tech)</option>
+                  </select>
+                </div>
+                <button onClick={() => removeItem(item.id)} className="text-red-400/60 hover:text-red-400 transition-colors shrink-0">
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <Button size="sm" variant="outline" onClick={addItem} className="h-7 text-[10px] border-white/10 border-dashed w-full">
+            <Plus size={11} className="mr-1" /> Add Item
+          </Button>
+        </div>
+      ) : (
+        <div className="divide-y divide-white/5 max-h-48 overflow-y-auto">
+          {displayItems.map(item => (
+            <div key={item.id} className="flex items-center justify-between px-4 py-2">
+              <span className="text-xs text-white/80">{item.label}</span>
+              <span className="text-[10px] text-muted-foreground">{item.category}{(item as any).requiredLevel ? ` · L${(item as any).requiredLevel}+` : ""}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -224,8 +224,8 @@ export const appRouter = router({
 
     create: adminProcedure
       .input(z.object({
-        role: z.enum(['user', 'admin', 'super_admin', 'customer']).optional(),
-        shopId: z.number().optional(), // For customer invites: link to specific shop
+        role: z.enum(['user', 'admin', 'super_admin', 'customer', 'shop_manager']).optional(),
+        shopId: z.number().optional(),
         expiresInDays: z.number().min(1).max(365).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
@@ -237,7 +237,7 @@ export const appRouter = router({
           code,
           createdById: ctx.user.id,
           role: input.role,
-          shopId: input.role === 'customer' ? input.shopId : undefined,
+          shopId: ['customer', 'shop_manager', 'user'].includes(input.role ?? '') ? input.shopId : undefined,
           expiresAt,
         });
         return { id, code };
@@ -2171,7 +2171,7 @@ Be realistic and specific to this exact market. Use your knowledge of US demogra
         email: z.string().email().optional(),
         username: z.string().min(3).regex(/^[a-zA-Z0-9_.-]+$/),
         password: z.string().min(6),
-        role: z.enum(['user', 'admin', 'super_admin', 'customer']).default('customer'),
+        role: z.enum(['user', 'admin', 'super_admin', 'customer', 'shop_manager']).default('customer'),
         shopId: z.number().optional(),
       }))
       .mutation(async ({ input }) => {
@@ -2431,6 +2431,14 @@ Do not use bullet points unless specifically asked. Write in plain paragraphs.`;
         await db.saveChecklistTemplate(input.shopId, input.name, input.items, ctx.user.id);
         return { success: true };
       }),
+
+    getShopTechs: shopManagerProcedure
+      .input(z.object({ shopId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role === "shop_manager" && ctx.user.shopId !== input.shopId) throw new Error("Access denied");
+        return db.getUsersByShop(input.shopId);
+      }),
+
     getMySupplyOrders: protectedProcedure.query(async ({ ctx }) => {
       return db.getSupplyOrdersByUser(ctx.user.id);
     }),
