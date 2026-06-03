@@ -2161,6 +2161,44 @@ Be realistic and specific to this exact market. Use your knowledge of US demogra
       return db.getShopsWithLatestAssessment();
     }),
 
+    createShop: superAdminProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        location: z.string().optional(),
+        contactName: z.string().optional(),
+        contactEmail: z.string().optional(),
+        contactPhone: z.string().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const id = await db.createShop({ ...input, createdById: ctx.user.id });
+        return { id };
+      }),
+
+    updateShop: superAdminProcedure
+      .input(z.object({
+        shopId: z.number(),
+        name: z.string().min(1).optional(),
+        location: z.string().optional(),
+        contactName: z.string().optional(),
+        contactEmail: z.string().optional(),
+        contactPhone: z.string().optional(),
+        notes: z.string().optional(),
+        logoUrl: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { shopId, ...data } = input;
+        await db.updateShop(shopId, data);
+        return { success: true };
+      }),
+
+    deleteShop: superAdminProcedure
+      .input(z.object({ shopId: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.deleteShop(input.shopId);
+        return { success: true };
+      }),
+
     listAllUsers: superAdminProcedure.query(async () => {
       return db.getAllUsers();
     }),
