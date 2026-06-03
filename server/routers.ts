@@ -2439,6 +2439,11 @@ Do not use bullet points unless specifically asked. Write in plain paragraphs.`;
         return db.getUsersByShop(input.shopId);
       }),
 
+    // All shops — for admin shop switcher (admin + super_admin)
+    listManagedShops: adminProcedure.query(async () => {
+      return db.getShopsWithLatestAssessment();
+    }),
+
     getMySupplyOrders: protectedProcedure.query(async ({ ctx }) => {
       return db.getSupplyOrdersByUser(ctx.user.id);
     }),
