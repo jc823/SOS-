@@ -49,7 +49,7 @@ export const appRouter = router({
         });
         const cookieOptions = getSessionCookieOptions(ctx.req);
         ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-        return { success: true, user: { id: user.id, name: user.name, username: user.username, role: user.role } };
+        return { success: true, user: { id: user.id, name: user.name, username: user.username, role: user.role, techLevel: user.techLevel ?? null } };
       }),
 
     // Register with invite code
@@ -100,7 +100,7 @@ export const appRouter = router({
         });
         const cookieOptions = getSessionCookieOptions(ctx.req);
         ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-        return { success: true, user: { id: user.id, name: user.name, username: user.username, role: user.role } };
+        return { success: true, user: { id: user.id, name: user.name, username: user.username, role: user.role, techLevel: user.techLevel ?? null } };
       }),
 
     // Open registration — no invite code needed
@@ -129,7 +129,7 @@ export const appRouter = router({
         const sessionToken = await sdk.createSessionToken(user.openId, { name: user.name || username, expiresInMs: ONE_YEAR_MS });
         const cookieOptions = getSessionCookieOptions(ctx.req);
         ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-        return { success: true, user: { id: user.id, name: user.name, username: user.username, role: user.role } };
+        return { success: true, user: { id: user.id, name: user.name, username: user.username, role: user.role, techLevel: user.techLevel ?? null } };
       }),
 
     // Quiz quick-register: from gate form, create/login silently
@@ -2203,6 +2203,42 @@ Be realistic and specific to this exact market. Use your knowledge of US demogra
       }))
       .mutation(async ({ input }) => {
         await db.updateUserRole(input.userId, input.role);
+        return { success: true };
+      }),
+
+    updateUserTechLevel: superAdminProcedure
+      .input(z.object({ userId: z.number(), techLevel: z.number().nullable() }))
+      .mutation(async ({ input }) => {
+        await db.updateUserTechLevel(input.userId, input.techLevel);
+        return { success: true };
+      }),
+
+    updateShopBranding: superAdminProcedure
+      .input(z.object({
+        shopId: z.number(),
+        brandName: z.string().optional(),
+        brandColor: z.string().optional(),
+        brandAccentColor: z.string().optional(),
+        logoUrl: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { shopId, ...data } = input;
+        await db.updateShopBranding(shopId, data);
+        return { success: true };
+      }),
+
+    getLevelPermissions: superAdminProcedure
+      .input(z.object({ shopId: z.number() }))
+      .query(async ({ input }) => db.getLevelPermissions(input.shopId)),
+
+    upsertLevelPermissions: superAdminProcedure
+      .input(z.object({
+        shopId: z.number(),
+        level: z.number(),
+        permissions: z.record(z.string(), z.boolean()),
+      }))
+      .mutation(async ({ input }) => {
+        await db.upsertLevelPermissions(input.shopId, input.level, input.permissions);
         return { success: true };
       }),
 

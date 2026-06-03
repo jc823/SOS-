@@ -34,11 +34,10 @@ export default function Login() {
   // ── Auto-verify magic token from URL ──────────────────────────────────────
   const verifyMutation = trpc.auth.verifyMagicLink.useMutation({
     onSuccess: (data) => {
-      if (data.user?.role === 'customer') {
-        navigate('/portal');
-      } else {
-        navigate(returnPath);
-      }
+      const u = data.user as any;
+      if (u?.role === 'customer') navigate('/portal');
+      else if (u?.techLevel) navigate('/tech');
+      else navigate(returnPath);
     },
     onError: () => { /* token expired — stay on login */ },
   });
@@ -50,17 +49,16 @@ export default function Login() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Password login ────────────────────────────────────────────────────────
+  function getRedirect(user: { role?: string; techLevel?: number | null } | null | undefined) {
+    if (!user) return returnPath;
+    if (user.role === 'customer') return '/portal';
+    if (user.techLevel) return '/tech';
+    return returnPath;
+  }
+
   const loginMutation = trpc.auth.login.useMutation({
-    onSuccess: (data) => {
-      if (data.user?.role === 'customer') {
-        navigate('/portal');
-      } else {
-        navigate(returnPath);
-      }
-    },
-    onError: (err) => {
-      setPwError(err.message || 'Invalid username or password');
-    },
+    onSuccess: (data) => navigate(getRedirect(data.user)),
+    onError: (err) => setPwError(err.message || 'Invalid username or password'),
   });
 
   function handlePasswordSubmit(e: React.FormEvent) {
