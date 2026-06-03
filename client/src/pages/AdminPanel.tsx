@@ -80,7 +80,7 @@ export default function AdminPanel() {
   const deleteInvite   = trpc.invites.delete.useMutation({ onSuccess: () => invitesQuery.refetch() });
   const runLearning    = trpc.admin.runLearningAnalysis.useMutation({ onSuccess: () => aiInsightsQuery.refetch() });
   const updateSetting  = trpc.admin.updateSetting.useMutation({ onSuccess: () => settingsQuery.refetch() });
-  const createShop     = trpc.admin.createShop.useMutation({ onSuccess: () => shopsQuery.refetch() });
+  const createShopMut  = trpc.admin.createShop.useMutation({ onSuccess: () => shopsQuery.refetch() });
   const updateShop     = trpc.admin.updateShop.useMutation({ onSuccess: () => shopsQuery.refetch() });
   const deleteShop     = trpc.admin.deleteShop.useMutation({ onSuccess: () => shopsQuery.refetch() });
   const createUser     = trpc.admin.createUser.useMutation({
@@ -424,13 +424,13 @@ export default function AdminPanel() {
             allShops={allShops}
             allUsers={allUsers}
             isLoading={shopsQuery.isLoading}
-            onCreateShop={(data) => createShop.mutate(data)}
+            createShopMut={createShopMut}
             onUpdateShop={(shopId, data) => updateShop.mutate({ shopId, ...data })}
             onDeleteShop={(shopId) => deleteShop.mutate({ shopId })}
             onUnlock={(shopId, unlocked) => unlockResults.mutate({ shopId, unlocked })}
             onSaveBranding={(shopId, data) => updateBranding.mutate({ shopId, ...data })}
             onAssignUser={(userId, shopId) => assignShop.mutate({ userId, shopId })}
-            isMutating={createShop.isPending || updateShop.isPending || deleteShop.isPending || unlockResults.isPending || updateBranding.isPending || assignShop.isPending}
+            isMutating={updateShop.isPending || deleteShop.isPending || unlockResults.isPending || updateBranding.isPending || assignShop.isPending}
           />
         )}
 
@@ -701,13 +701,13 @@ export default function AdminPanel() {
 // ─── Shops CRM Tab ────────────────────────────────────────────────────────────
 function ShopsTab({
   allShops, allUsers, isLoading,
-  onCreateShop, onUpdateShop, onDeleteShop,
+  createShopMut, onUpdateShop, onDeleteShop,
   onUnlock, onSaveBranding, onAssignUser, isMutating,
 }: {
   allShops: any[];
   allUsers: any[];
   isLoading: boolean;
-  onCreateShop: (data: any) => void;
+  createShopMut: ReturnType<typeof trpc.admin.createShop.useMutation>;
   onUpdateShop: (shopId: number, data: any) => void;
   onDeleteShop: (shopId: number) => void;
   onUnlock: (shopId: number, unlocked: boolean) => void;
@@ -727,11 +727,18 @@ function ShopsTab({
   const [csCPhone, setCsCPhone] = useState("");
   const [csNotes, setCsNotes] = useState("");
 
+  function resetForm() {
+    setCsName(""); setCsLoc(""); setCsCName(""); setCsCEmail(""); setCsCPhone(""); setCsNotes("");
+  }
+
   function submitCreate() {
     if (!csName.trim()) return;
-    onCreateShop({ name: csName, location: csLoc || undefined, contactName: csCName || undefined, contactEmail: csCEmail || undefined, contactPhone: csCPhone || undefined, notes: csNotes || undefined });
-    setCsName(""); setCsLoc(""); setCsCName(""); setCsCEmail(""); setCsCPhone(""); setCsNotes("");
-    setShowCreate(false);
+    createShopMut.mutate(
+      { name: csName, location: csLoc || undefined, contactName: csCName || undefined, contactEmail: csCEmail || undefined, contactPhone: csCPhone || undefined, notes: csNotes || undefined },
+      {
+        onSuccess: () => { resetForm(); setShowCreate(false); },
+      }
+    );
   }
 
   function shopTab(shopId: number) { return activeShopTab[shopId] ?? "profile"; }
@@ -785,11 +792,14 @@ function ShopsTab({
               <Input value={csNotes} onChange={e => setCsNotes(e.target.value)} placeholder="Internal notes…" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
             </div>
           </div>
+          {createShopMut.isError && (
+            <p className="text-xs text-red-400 flex items-center gap-1">Error: {createShopMut.error?.message ?? "Failed to create shop"}</p>
+          )}
           <div className="flex gap-3">
-            <Button onClick={submitCreate} disabled={!csName.trim() || isMutating} className="bg-gold text-black font-bold hover:bg-gold/90 h-9 px-5 text-xs">
-              {isMutating ? <Loader2 size={12} className="animate-spin mr-1.5" /> : null} Create Shop
+            <Button onClick={submitCreate} disabled={!csName.trim() || createShopMut.isPending} className="bg-gold text-black font-bold hover:bg-gold/90 h-9 px-5 text-xs">
+              {createShopMut.isPending ? <><Loader2 size={12} className="animate-spin mr-1.5" /> Creating…</> : "Create Shop"}
             </Button>
-            <Button variant="outline" onClick={() => setShowCreate(false)} className="h-9 px-5 text-xs border-white/10">Cancel</Button>
+            <Button variant="outline" onClick={() => { setShowCreate(false); resetForm(); createShopMut.reset(); }} className="h-9 px-5 text-xs border-white/10">Cancel</Button>
           </div>
         </div>
       )}
