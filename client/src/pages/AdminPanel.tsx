@@ -52,7 +52,8 @@ export default function AdminPanel() {
   const settingsQuery = trpc.admin.getSettings.useQuery(undefined,     { enabled: canQuery });
   const aiInsightsQuery = trpc.admin.getAIInsights.useQuery(undefined, { enabled: canQuery && tab === "ai" });
 
-  const updateRole     = trpc.admin.updateUserRole.useMutation({ onSuccess: () => usersQuery.refetch() });
+  const updateRole         = trpc.admin.updateUserRole.useMutation({ onSuccess: () => usersQuery.refetch() });
+  const updateSubscription = trpc.admin.updateUserSubscription.useMutation({ onSuccess: () => usersQuery.refetch() });
   const assignShop     = trpc.admin.assignShopToUser.useMutation({ onSuccess: () => usersQuery.refetch() });
   const unlockResults  = trpc.admin.unlockShopResults.useMutation({ onSuccess: () => shopsQuery.refetch() });
   const createInvite   = trpc.invites.create.useMutation({ onSuccess: () => invitesQuery.refetch() });
@@ -292,7 +293,8 @@ export default function AdminPanel() {
                     <tr className="border-b border-white/5 bg-white/[0.02]">
                       <th className="text-left px-6 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">User</th>
                       <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Role</th>
-                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Assigned Shop</th>
+                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Plan</th>
+                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Assigned Shop</th>
                       <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Joined</th>
                       <th className="px-4 py-3 w-16" />
                     </tr>
@@ -317,6 +319,20 @@ export default function AdminPanel() {
                             <option value="admin">admin</option>
                             <option value="super_admin">super_admin</option>
                             <option value="customer">customer</option>
+                          </select>
+                        </td>
+                        <td className="px-4 py-3">
+                          <select
+                            value={u.subscriptionStatus ?? "free"}
+                            onChange={e => updateSubscription.mutate({ userId: u.id, subscriptionStatus: e.target.value as "free" | "pro" | "agent" })}
+                            disabled={updateSubscription.isPending}
+                            className={`bg-white/5 border rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-gold/50 disabled:opacity-40 cursor-pointer ${
+                              (u.subscriptionStatus === "pro" || u.subscriptionStatus === "agent") ? "text-gold border-gold/30" : "text-muted-foreground border-white/10"
+                            }`}
+                          >
+                            <option value="free">free</option>
+                            <option value="pro">pro</option>
+                            <option value="agent">agent</option>
                           </select>
                         </td>
                         <td className="px-4 py-3">

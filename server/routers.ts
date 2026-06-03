@@ -2206,6 +2206,16 @@ Be realistic and specific to this exact market. Use your knowledge of US demogra
         return { success: true };
       }),
 
+    updateUserSubscription: superAdminProcedure
+      .input(z.object({
+        userId: z.number(),
+        subscriptionStatus: z.enum(['free', 'pro', 'agent']),
+      }))
+      .mutation(async ({ input }) => {
+        await db.updateUserSubscription(input.userId, { subscriptionStatus: input.subscriptionStatus });
+        return { success: true };
+      }),
+
     assignShopToUser: superAdminProcedure
       .input(z.object({
         userId: z.number(),
