@@ -50,6 +50,16 @@ export default function Quiz() {
 
   const quizRegister = trpc.auth.quizRegister.useMutation();
 
+  // Auto-redirect after results — must be at top level, not inside if block
+  useEffect(() => {
+    if (step !== "results" || !result) return;
+    const timer = setTimeout(() => {
+      setRedirecting(true);
+      setTimeout(() => navigate("/portal"), 1500);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [step, result]);
+
   const phaseQuestions = phase === 1
     ? QUIZ_QUESTIONS.slice(0, GATE_AFTER_INDEX + 1)
     : QUIZ_QUESTIONS.slice(GATE_AFTER_INDEX + 1);
@@ -251,15 +261,6 @@ export default function Quiz() {
   if (step === "results" && result) {
     const gradeColor = GRADE_COLORS[result.grade] ?? "text-white";
     const bandColor = BAND_COLORS[result.band] ?? "text-white";
-
-    // Auto-redirect to portal after 6 seconds (account was created at gate)
-    useEffect(() => {
-      const timer = setTimeout(() => {
-        setRedirecting(true);
-        setTimeout(() => navigate("/portal"), 1500);
-      }, 6000);
-      return () => clearTimeout(timer);
-    }, []);
 
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white">
