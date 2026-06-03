@@ -23,6 +23,8 @@ import {
   clientNotes, InsertClientNote,
   clientTasks, InsertClientTask,
   actionPlanProgress,
+  supplyOrders,
+  levelPermissions,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1278,4 +1280,62 @@ export async function getAllClientsForCRM() {
     };
   }));
   return results;
+}
+
+// ─── Supply Orders ────────────────────────────────────────────────────────────
+
+export async function getSupplyOrdersByUser(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(supplyOrders).where(eq(supplyOrders.requestedById, userId)).orderBy(desc(supplyOrders.createdAt)).limit(50);
+}
+
+export async function getSupplyOrdersByShop(shopId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(supplyOrders).where(eq(supplyOrders.shopId, shopId)).orderBy(desc(supplyOrders.createdAt)).limit(100);
+}
+
+export async function createSupplyOrder(data: { shopId: number; requestedById: number; items: any; notes: string | null; status: string }): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(supplyOrders).values(data).returning({ id: supplyOrders.id });
+  return result[0].id;
+}
+
+export async function updateSupplyOrderStatus(orderId: number, status: string, approvedById: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(supplyOrders).set({
+    status,
+    approvedById: status === "approved" ? approvedById : undefined,
+    approvedAt: status === "approved" ? new Date() : undefined,
+    updatedAt: new Date(),
+  }).where(eq(supplyOrders.id, orderId));
+}
+
+// ─── Shop Branding ────────────────────────────────────────────────────────────
+
+export async function updateShopBranding(shopId: number, data: { brandName?: string; brandColor?: string; brandAccentColor?: string; logoUrl?: string }): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(shops).set({ ...data, updatedAt: new Date() }).where(eq(shops.id, shopId));
+}
+
+// ─── Tech Level / Permissions ─────────────────────────────────────────────────
+
+export async function getLevelPermissions(shopId: number): Promise<Array<{ level: number; permissions: Record<string, boolean> }>> {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select().from(levelPermissions).where(eq(levelPermissions.shopId, shopId)).orderBy(levelPermissions.level);
+  return rows.map(r => ({ level: r.level, permissions: (r.permissions as Record<string, boolean>) ?? {} }));
+}
+
+export async function upsertLevelPermissions(shopId: number, level: number, permissions: Record<string, boolean>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(levelPermissions).values({ shopId, level, permissions }).onConflictDoUpdate({
+    target: [levelPermissions.shopId, levelPermissions.level],
+    set: { permissions, updatedAt: new Date() },
+  });
 }

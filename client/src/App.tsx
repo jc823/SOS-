@@ -5,6 +5,7 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import AuthGuard from "./components/AuthGuard";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { BrandingProvider } from "./contexts/BrandingContext";
 import Hub from "./pages/Hub";
 import Home from "./pages/Home";
 import Report from "./pages/Report";
@@ -17,6 +18,7 @@ import CustomerPortal from "./pages/CustomerPortal";
 import AdminPanel from "./pages/AdminPanel";
 import Pricing from "./pages/Pricing";
 import BillingSuccess from "./pages/BillingSuccess";
+import TechPortal from "./pages/TechPortal";
 
 function Router() {
   return (
@@ -60,6 +62,13 @@ function Router() {
         </AuthGuard>
       </Route>
 
+      {/* Tech portal — for shop employees */}
+      <Route path="/tech">
+        <AuthGuard>
+          <TechPortal />
+        </AuthGuard>
+      </Route>
+
       {/* Super admin only */}
       <Route path="/admin">
         <AuthGuard roles={["super_admin"]}>
@@ -77,6 +86,7 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="dark" switchable={true}>
+        <BrandingProvider>
         <TooltipProvider>
           <Toaster
             theme="dark"
@@ -90,6 +100,7 @@ function App() {
           />
           <Router />
         </TooltipProvider>
+        </BrandingProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );
