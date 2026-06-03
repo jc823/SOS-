@@ -336,7 +336,8 @@ export default function AdminPanel() {
                             disabled={u.id === user.id || updateRole.isPending}
                             className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-gold/50 disabled:opacity-40 cursor-pointer"
                           >
-                            <option value="user">user</option>
+                            <option value="user">user (tech)</option>
+                            <option value="shop_manager">shop_manager</option>
                             <option value="admin">admin</option>
                             <option value="super_admin">super_admin</option>
                             <option value="customer">customer</option>

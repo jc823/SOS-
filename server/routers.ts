@@ -2206,19 +2206,27 @@ Be realistic and specific to this exact market. Use your knowledge of US demogra
         return { success: true };
       }),
 
-    updateUserTechLevel: superAdminProcedure
+    updateUserTechLevel: shopManagerProcedure
       .input(z.object({ userId: z.number(), techLevel: z.number().nullable() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role === "shop_manager") {
+          const target = await db.getUserById(input.userId);
+          if (!target || target.shopId !== ctx.user.shopId) throw new Error("Access denied");
+        }
         await db.updateUserTechLevel(input.userId, input.techLevel);
         return { success: true };
       }),
 
-    updateUserTechPermissions: superAdminProcedure
+    updateUserTechPermissions: shopManagerProcedure
       .input(z.object({
         userId: z.number(),
         permissions: z.record(z.string(), z.boolean()),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role === "shop_manager") {
+          const target = await db.getUserById(input.userId);
+          if (!target || target.shopId !== ctx.user.shopId) throw new Error("Access denied");
+        }
         await db.updateUserTechPermissions(input.userId, input.permissions);
         return { success: true };
       }),
@@ -2438,6 +2446,11 @@ Do not use bullet points unless specifically asked. Write in plain paragraphs.`;
         if (ctx.user.role === "shop_manager" && ctx.user.shopId !== input.shopId) throw new Error("Access denied");
         return db.getUsersByShop(input.shopId);
       }),
+
+    // All shops — for admin shop switcher (admin + super_admin)
+    listManagedShops: adminProcedure.query(async () => {
+      return db.getShopsWithLatestAssessment();
+    }),
 
     getMySupplyOrders: protectedProcedure.query(async ({ ctx }) => {
       return db.getSupplyOrdersByUser(ctx.user.id);

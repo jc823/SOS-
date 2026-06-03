@@ -32,13 +32,12 @@ interface ToolCard {
   requiresPro?: boolean;
 }
 
-const TOOLS: ToolCard[] = [
-  // ── Free ────────────────────────────────────────────────────────────────────
+const SOS_TOOLS: ToolCard[] = [
   {
     id: 'quiz',
     title: 'SOS Quiz',
-    subtitle: 'Free Assessment',
-    description: 'Public-facing quiz for potential clients. 8 questions, lead gate, instant score with revenue gap estimate. No login required.',
+    subtitle: 'Free Lead Magnet',
+    description: 'Public-facing quiz for potential clients. 8 questions, instant score with revenue gap estimate. No login required.',
     icon: <ExternalLink size={22} />,
     href: '/quiz',
     accentColor: 'emerald',
@@ -46,13 +45,11 @@ const TOOLS: ToolCard[] = [
     stats: 'Free · No Login · Lead Capture',
     requiresPro: false,
   },
-
-  // ── Pro ─────────────────────────────────────────────────────────────────────
   {
     id: 'sos',
     title: 'SOS Assessment',
-    subtitle: 'Business Assessment',
-    description: 'Score shops across 4 pillars — Services, Sales, Ads, and Team. Generate intelligence reports, consultation presentations, and scaling probability analysis.',
+    subtitle: 'Business Scoring',
+    description: 'Score shops across 4 pillars — Services, Sales, Ads, and Team. Generate intelligence reports and scaling probability analysis.',
     icon: <ClipboardCheck size={22} />,
     href: '/assessment',
     accentColor: 'gold',
@@ -72,35 +69,97 @@ const TOOLS: ToolCard[] = [
     stats: 'History · Compare · Timeline',
     requiresPro: true,
   },
+];
 
-  // ── Admin tools ─────────────────────────────────────────────────────────────
+const SHOP_TOOLS: ToolCard[] = [
   {
-    id: 'tech',
-    title: 'Tech Dashboard',
-    subtitle: 'Team Management',
-    description: 'View and manage your team\'s daily checklists, approve supply orders, and track team performance.',
+    id: 'shop-ops',
+    title: 'Shop Operations',
+    subtitle: 'Team & Daily Management',
+    description: 'Jump into any shop to manage daily checklists, approve supply orders, configure tech access levels, and view team rosters.',
     icon: <ClipboardList size={22} />,
-    href: '/tech',
+    href: '/shop-admin',
     accentColor: 'orange',
     available: true,
-    stats: 'Checklists · Supply Orders · Team',
-    requiresPro: true,
+    stats: 'Checklists · Orders · Team · Access',
   },
-
-  // ── Super admin ─────────────────────────────────────────────────────────────
   {
     id: 'admin',
     title: 'Admin Panel',
-    subtitle: 'User & Shop Management',
-    description: 'Manage user roles, assign shops to customers, generate invite codes, and control which clients can see their full results.',
+    subtitle: 'Platform Management',
+    description: 'Manage all users and shops, generate invite codes, configure branding, and access AI insights across the platform.',
     icon: <Shield size={22} />,
     href: '/admin',
     accentColor: 'purple',
     available: true,
-    stats: 'Users · Shops · Invites · Access',
+    stats: 'Users · Shops · Invites · AI',
     requiredRole: 'super_admin',
   },
 ];
+
+// Unified tool card renderer
+function ToolCard({ tool, index, user, navigate }: { tool: ToolCard; index: number; user: any; navigate: (path: string) => void }) {
+  const accent = getAccentClasses(tool.accentColor);
+  const isFreeUser = !user?.subscriptionStatus || user.subscriptionStatus === 'free';
+  const isAdminUser = user?.role === 'super_admin' || user?.role === 'admin';
+  const isLocked = tool.requiresPro && isFreeUser && !isAdminUser;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.05 + index * 0.025, duration: 0.35 }}
+    >
+      {isLocked ? (
+        <div
+          onClick={() => navigate('/pricing')}
+          className="relative glass-card p-5 cursor-pointer h-full border border-white/5 hover:border-gold/20 transition-all group"
+        >
+          <div className="flex items-start justify-between mb-3">
+            <div className="w-10 h-10 rounded-lg bg-white/[0.02] border border-white/[0.04] flex items-center justify-center text-muted-foreground/30">
+              {tool.icon}
+            </div>
+            <div className="flex items-center gap-1 mt-1">
+              <span className="text-[9px] text-gold/50 uppercase tracking-widest font-bold">Pro</span>
+              <Lock size={11} className="text-gold/40" />
+            </div>
+          </div>
+          <h3 className="text-sm font-semibold text-foreground/40 mb-0.5 tracking-wide uppercase" style={{ fontFamily: "'Bebas Neue', Impact, sans-serif", fontSize: '1.05rem', letterSpacing: '0.04em' }}>
+            {tool.title}
+          </h3>
+          <p className="text-[11px] text-muted-foreground/40 font-medium mb-2">{tool.subtitle}</p>
+          <p className="text-xs text-muted-foreground/30 leading-relaxed mb-3">{tool.description}</p>
+          <p className="text-[10px] text-gold/40 group-hover:text-gold transition-colors font-semibold flex items-center gap-1">
+            Upgrade to Pro <ArrowRight size={10} />
+          </p>
+        </div>
+      ) : (
+        <Link href={tool.href}>
+          <div className={`group relative glass-card glass-card-hover p-5 cursor-pointer transition-all duration-200 ${accent.border} ${accent.glow} hover:shadow-lg h-full`}>
+            <div className="absolute left-0 top-3 bottom-3 w-[3px] rounded-full bg-gold opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+            <div className="flex items-start justify-between mb-3">
+              <div className={`w-10 h-10 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-center justify-center ${accent.icon}`}>
+                {tool.icon}
+              </div>
+              <ChevronRight size={14} className="text-muted-foreground/20 group-hover:text-gold group-hover:translate-x-0.5 transition-all mt-1" />
+            </div>
+            <h3 className="text-sm font-semibold text-foreground mb-0.5 tracking-wide uppercase" style={{ fontFamily: "'Bebas Neue', Impact, sans-serif", fontSize: '1.05rem', letterSpacing: '0.04em' }}>
+              {tool.title}
+            </h3>
+            <p className={`text-[11px] font-medium mb-2 ${accent.icon}`}>{tool.subtitle}</p>
+            <p className="text-xs text-muted-foreground leading-relaxed mb-3">{tool.description}</p>
+            {tool.stats && (
+              <div className="flex items-center gap-1">
+                <div className="h-[2px] w-3 bg-gold/40 rounded-full" />
+                <p className="text-[9px] text-muted-foreground/50 font-data uppercase tracking-widest">{tool.stats}</p>
+              </div>
+            )}
+          </div>
+        </Link>
+      )}
+    </motion.div>
+  );
+}
 
 function getAccentClasses(accent: string) {
   const map: Record<string, { icon: string; border: string; glow: string }> = {
@@ -310,93 +369,41 @@ export default function Hub() {
           </motion.div>
         )}
 
-        {/* Tool Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {TOOLS.filter(tool => {
-            if (tool.hiddenFromHub) return false;
-            if (tool.requiredRole === 'super_admin' && user?.role !== 'super_admin') return false;
-            return true;
-          }).map((tool, i) => {
-            const accent = getAccentClasses(tool.accentColor);
-            const isFreeUser = !user?.subscriptionStatus || user.subscriptionStatus === 'free';
-            const isAdminUser = user?.role === 'super_admin' || user?.role === 'admin';
-            const isLocked = tool.requiresPro && isFreeUser && !isAdminUser;
-
-            return (
-              <motion.div
-                key={tool.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05 + i * 0.025, duration: 0.35 }}
-              >
-                {isLocked ? (
-                  /* Locked — Pro required */
-                  <div
-                    onClick={() => navigate('/pricing')}
-                    className="relative glass-card p-5 cursor-pointer h-full border border-white/5 hover:border-gold/20 transition-all group"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/[0.02] border border-white/[0.04] flex items-center justify-center text-muted-foreground/30">
-                        {tool.icon}
-                      </div>
-                      <div className="flex items-center gap-1 mt-1">
-                        <span className="text-[9px] text-gold/50 uppercase tracking-widest font-bold">Pro</span>
-                        <Lock size={11} className="text-gold/40" />
-                      </div>
-                    </div>
-                    <h3 className="text-sm font-semibold text-foreground/40 mb-0.5 tracking-wide uppercase" style={{ fontFamily: "'Bebas Neue', Impact, sans-serif", fontSize: '1.05rem', letterSpacing: '0.04em' }}>
-                      {tool.title}
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground/40 font-medium mb-2">{tool.subtitle}</p>
-                    <p className="text-xs text-muted-foreground/30 leading-relaxed mb-3">{tool.description}</p>
-                    <p className="text-[10px] text-gold/40 group-hover:text-gold transition-colors font-semibold flex items-center gap-1">
-                      Upgrade to Pro <ArrowRight size={10} />
-                    </p>
-                  </div>
-                ) : tool.available ? (
-                  /* Available */
-                  <Link href={tool.href}>
-                    <div className={`group relative glass-card glass-card-hover p-5 cursor-pointer transition-all duration-200 ${accent.border} ${accent.glow} hover:shadow-lg h-full`}>
-                      <div className={`absolute left-0 top-3 bottom-3 w-[3px] rounded-full bg-gold opacity-0 group-hover:opacity-100 transition-opacity duration-200`} />
-                      <div className="flex items-start justify-between mb-3">
-                        <div className={`w-10 h-10 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-center justify-center ${accent.icon}`}>
-                          {tool.icon}
-                        </div>
-                        <ChevronRight size={14} className="text-muted-foreground/20 group-hover:text-gold group-hover:translate-x-0.5 transition-all mt-1" />
-                      </div>
-                      <h3 className="text-sm font-semibold text-foreground mb-0.5 tracking-wide uppercase" style={{ fontFamily: "'Bebas Neue', Impact, sans-serif", fontSize: '1.05rem', letterSpacing: '0.04em' }}>
-                        {tool.title}
-                      </h3>
-                      <p className="text-[11px] text-gold font-medium mb-2">{tool.subtitle}</p>
-                      <p className="text-xs text-muted-foreground leading-relaxed mb-3">{tool.description}</p>
-                      {tool.stats && (
-                        <div className="flex items-center gap-1">
-                          <div className="h-[2px] w-3 bg-gold/40 rounded-full" />
-                          <p className="text-[9px] text-muted-foreground/50 font-data uppercase tracking-widest">{tool.stats}</p>
-                        </div>
-                      )}
-                    </div>
-                  </Link>
-                ) : (
-                  /* Coming soon */
-                  <div className="relative glass-card p-5 opacity-40 h-full">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/[0.02] border border-white/[0.04] flex items-center justify-center text-muted-foreground/40">
-                        {tool.icon}
-                      </div>
-                      <Lock size={12} className="text-muted-foreground/20 mt-1" />
-                    </div>
-                    <h3 className="text-sm font-semibold text-foreground/60 mb-0.5 tracking-wide uppercase" style={{ fontFamily: "'Bebas Neue', Impact, sans-serif", fontSize: '1.05rem', letterSpacing: '0.04em' }}>
-                      {tool.title}
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground font-medium mb-2">{tool.subtitle}</p>
-                    <p className="text-xs text-muted-foreground/60 leading-relaxed">{tool.description}</p>
-                  </div>
-                )}
-              </motion.div>
-            );
-          })}
+        {/* ── Section: SOS Scorecard ── */}
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-[2px] w-4 bg-gold rounded-full" />
+            <span className="text-[10px] uppercase tracking-widest text-gold font-bold">SOS Scorecard</span>
+            <div className="flex-1 h-px bg-white/5" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {SOS_TOOLS.filter(tool => {
+              if (tool.requiredRole === 'super_admin' && user?.role !== 'super_admin') return false;
+              return true;
+            }).map((tool, i) => (
+              <ToolCard key={tool.id} tool={tool} index={i} user={user} navigate={navigate} />
+            ))}
+          </div>
         </div>
+
+        {/* ── Section: Shop Operations ── */}
+        {(user?.role === 'admin' || user?.role === 'super_admin') && (
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-[2px] w-4 bg-orange rounded-full" />
+              <span className="text-[10px] uppercase tracking-widest font-bold" style={{ color: 'var(--color-orange, #f97316)' }}>Shop Operations</span>
+              <div className="flex-1 h-px bg-white/5" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {SHOP_TOOLS.filter(tool => {
+                if (tool.requiredRole === 'super_admin' && user?.role !== 'super_admin') return false;
+                return true;
+              }).map((tool, i) => (
+                <ToolCard key={tool.id} tool={tool} index={i} user={user} navigate={navigate} />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="mt-16 text-center">
