@@ -42,6 +42,8 @@ export default function Quiz() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [gateError, setGateError] = useState("");
   const [gateLoading, setGateLoading] = useState(false);
 
@@ -109,6 +111,10 @@ export default function Quiz() {
       setGateError("All fields are required.");
       return;
     }
+    if (password && password.length < 6) {
+      setGateError("Password must be at least 6 characters.");
+      return;
+    }
     setGateLoading(true);
     setGateError("");
 
@@ -117,7 +123,7 @@ export default function Quiz() {
     // Fire GHL webhook + silently create/login account
     await Promise.allSettled([
       sendLeadToGHL({ name, email, phone, partialScore: phase1Score }),
-      quizRegister.mutateAsync({ name, email, phone, partialScore: phase1Score }),
+      quizRegister.mutateAsync({ name, email, phone, partialScore: phase1Score, password: password || undefined }),
     ]);
 
     setGateLoading(false);
@@ -208,32 +214,33 @@ export default function Quiz() {
           <form onSubmit={handleGateSubmit} className="bg-white/[0.03] border border-white/8 rounded-2xl p-6 space-y-4">
             <div>
               <Label className="text-xs text-muted-foreground uppercase tracking-widest mb-1.5 block">Your Name *</Label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="John Smith"
-                className="bg-white/5 border-white/10"
-              />
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="John Smith" className="bg-white/5 border-white/10" />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground uppercase tracking-widest mb-1.5 block">Email Address *</Label>
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="john@myshop.com"
-                className="bg-white/5 border-white/10"
-              />
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="john@myshop.com" className="bg-white/5 border-white/10" />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground uppercase tracking-widest mb-1.5 block">Phone Number *</Label>
-              <Input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="(555) 123-4567"
-                className="bg-white/5 border-white/10"
-              />
+              <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 123-4567" className="bg-white/5 border-white/10" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase tracking-widest mb-1.5 block">
+                Create a Password <span className="text-muted-foreground/50 normal-case tracking-normal">(to access your results later)</span>
+              </Label>
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Min 6 characters"
+                  className="bg-white/5 border-white/10 pr-10"
+                />
+                <button type="button" onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white text-xs">
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              </div>
             </div>
 
             {gateError && (

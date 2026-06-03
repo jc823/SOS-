@@ -139,6 +139,7 @@ export const appRouter = router({
         email: z.string().email(),
         phone: z.string(),
         partialScore: z.number(),
+        password: z.string().min(6).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         // If email already exists, just log them in
@@ -148,17 +149,22 @@ export const appRouter = router({
           let username = baseUsername;
           let attempt = 0;
           while (await db.getUserByUsername(username)) { username = `${baseUsername}${++attempt}`; }
-          const tempPassword = crypto.randomBytes(16).toString('hex');
-          const passwordHash = await bcrypt.hash(tempPassword, 10);
+          // Use provided password or generate a random one
+          const rawPassword = input.password ?? crypto.randomBytes(16).toString('hex');
+          const passwordHash = await bcrypt.hash(rawPassword, 10);
           const userId = await db.createUserWithPassword({ username, passwordHash, name: input.name, email: input.email, role: 'customer' });
           user = await db.getUserById(userId) ?? null;
+        } else if (input.password) {
+          // Update password if they provided one and already have an account
+          const passwordHash = await bcrypt.hash(input.password, 10);
+          await db.updateAdminPassword(user.id, passwordHash);
         }
         if (!user) throw new Error("Failed to create account");
         await db.upsertUser({ openId: user.openId, lastSignedIn: new Date() });
         const sessionToken = await sdk.createSessionToken(user.openId, { name: user.name || '', expiresInMs: ONE_YEAR_MS });
         const cookieOptions = getSessionCookieOptions(ctx.req);
         ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-        return { success: true, isNew: !await db.getUserByEmail(input.email) };
+        return { success: true };
       }),
 
     // Magic link: generate token, log URL (wire email service later)
