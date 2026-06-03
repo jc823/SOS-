@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import {
   Store, LogOut, Loader2, ChevronLeft, ClipboardCheck, ShoppingCart,
   Users, Wrench, Plus, Trash2, ToggleLeft, ToggleRight,
-  Clock, Package, ThumbsUp, ThumbsDown, ChevronDown,
+  Clock, Package, ThumbsUp, ThumbsDown, ChevronDown, ChevronRight,
+  SlidersHorizontal,
 } from "lucide-react";
 
 type Tab = "checklist" | "techs" | "orders" | "permissions";
@@ -220,16 +221,43 @@ function ShopContent({
   localPerms: Record<number, Record<string, boolean>>;
   setLocalPerms: (v: any) => void;
 }) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
+
+  // Per-user override expand/edit state
+  const [expandedTech, setExpandedTech] = useState<number | null>(null);
+  const [techOverrides, setTechOverrides] = useState<Record<number, Record<string, boolean>>>({});
+
   const checklistQuery = trpc.tech.getChecklistTemplate.useQuery({ shopId });
   const techsQuery     = trpc.tech.getShopTechs.useQuery({ shopId });
   const ordersQuery    = trpc.tech.getShopSupplyOrders.useQuery();
   const permQuery      = trpc.admin.getLevelPermissions.useQuery({ shopId });
 
-  const saveChecklist = trpc.tech.saveChecklistTemplate.useMutation({
+  const saveChecklist    = trpc.tech.saveChecklistTemplate.useMutation({
     onSuccess: () => { checklistQuery.refetch(); setEditingChecklist(false); },
   });
-  const updateStatus = trpc.tech.updateOrderStatus.useMutation({ onSuccess: () => ordersQuery.refetch() });
-  const upsertPerms  = trpc.admin.upsertLevelPermissions.useMutation({ onSuccess: () => permQuery.refetch() });
+  const updateStatus     = trpc.tech.updateOrderStatus.useMutation({ onSuccess: () => ordersQuery.refetch() });
+  const upsertPerms      = trpc.admin.upsertLevelPermissions.useMutation({ onSuccess: () => permQuery.refetch() });
+  const updateTechLevel  = trpc.admin.updateUserTechLevel.useMutation({ onSuccess: () => techsQuery.refetch() });
+  const updateTechPerms  = trpc.admin.updateUserTechPermissions.useMutation({ onSuccess: () => techsQuery.refetch() });
+
+  function getTechOverrides(tech: any): Record<string, boolean> {
+    if (techOverrides[tech.id]) return techOverrides[tech.id];
+    return (tech.techPermissions as Record<string, boolean>) ?? {};
+  }
+
+  function toggleTechOverride(techId: number, key: string, current: Record<string, boolean>) {
+    setTechOverrides(prev => ({ ...prev, [techId]: { ...current, [key]: !current[key] } }));
+  }
+
+  function saveTechOverrides(techId: number) {
+    updateTechPerms.mutate({ userId: techId, permissions: techOverrides[techId] ?? {} });
+  }
+
+  function clearTechOverrides(techId: number) {
+    updateTechPerms.mutate({ userId: techId, permissions: {} });
+    setTechOverrides(prev => { const n = { ...prev }; delete n[techId]; return n; });
+  }
 
   const activeItems    = checklistQuery.data?.items as typeof DEFAULT_ITEMS | undefined;
   const checklistItems = activeItems?.length ? activeItems : DEFAULT_ITEMS;
@@ -362,46 +390,125 @@ function ShopContent({
 
       {/* ── Techs ── */}
       {tab === "techs" && (
-        <div className="bg-white/[0.03] border border-white/8 rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between">
-            <h2 className="text-sm font-bold">Team Members</h2>
-            {techsQuery.isLoading && <Loader2 size={14} className="animate-spin text-muted-foreground" />}
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/5 bg-white/[0.02]">
-                  <th className="text-left px-5 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Name</th>
-                  <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Role</th>
-                  <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Level</th>
-                  <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Email</th>
-                </tr>
-              </thead>
-              <tbody>
-                {allTechs.map((tech: any) => (
-                  <tr key={tech.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.015] transition-colors">
-                    <td className="px-5 py-3">
-                      <p className="text-xs font-medium">{tech.name || tech.username}</p>
-                      <p className="text-[10px] text-muted-foreground">{tech.username}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-[10px] border px-2 py-0.5 rounded font-medium bg-white/5 text-white/60 border-white/10">{tech.role}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {tech.techLevel ? (
-                        <span className="text-[10px] border px-2 py-0.5 rounded font-medium bg-gold/10 text-gold border-gold/20">
-                          L{tech.techLevel} — {LEVEL_LABEL[tech.techLevel] ?? "Unknown"}
-                        </span>
-                      ) : <span className="text-[10px] text-muted-foreground">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-[11px] text-muted-foreground">{tech.email ?? "—"}</td>
-                  </tr>
-                ))}
-                {allTechs.length === 0 && !techsQuery.isLoading && (
-                  <tr><td colSpan={4} className="px-5 py-10 text-center text-sm text-muted-foreground">No team members assigned to this shop yet.</td></tr>
-                )}
-              </tbody>
-            </table>
+        <div className="space-y-3">
+          <div className="bg-white/[0.03] border border-white/8 rounded-xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-bold">Team Members</h2>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Adjust levels and set individual permission overrides per tech.</p>
+              </div>
+              {techsQuery.isLoading && <Loader2 size={14} className="animate-spin text-muted-foreground" />}
+            </div>
+            <div className="divide-y divide-white/5">
+              {allTechs.map((tech: any) => {
+                const isExpanded = expandedTech === tech.id;
+                const overrides = getTechOverrides(tech);
+                const hasOverrides = Object.keys(tech.techPermissions ?? {}).length > 0;
+
+                return (
+                  <div key={tech.id}>
+                    {/* Tech row */}
+                    <div className="px-5 py-3 flex items-center gap-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium">{tech.name || tech.username}</p>
+                        <p className="text-[10px] text-muted-foreground">{tech.email ?? tech.username}</p>
+                      </div>
+
+                      {/* Level selector */}
+                      <select
+                        value={tech.techLevel ?? ""}
+                        onChange={e => updateTechLevel.mutate({ userId: tech.id, techLevel: e.target.value ? Number(e.target.value) : null })}
+                        disabled={updateTechLevel.isPending}
+                        className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-gold/50 disabled:opacity-40 cursor-pointer"
+                      >
+                        <option value="">No level</option>
+                        <option value="1">L1 — Apprentice</option>
+                        <option value="2">L2 — Technician</option>
+                        <option value="3">L3 — Lead Tech</option>
+                      </select>
+
+                      {/* Override indicator + expand toggle */}
+                      <button
+                        onClick={() => {
+                          if (!isExpanded) setTechOverrides(prev => ({ ...prev, [tech.id]: { ...(tech.techPermissions ?? {}) } }));
+                          setExpandedTech(isExpanded ? null : tech.id);
+                        }}
+                        className={`flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded transition-colors border ${
+                          hasOverrides
+                            ? "text-amber-400 border-amber-400/30 bg-amber-400/10 hover:bg-amber-400/20"
+                            : "text-muted-foreground border-white/10 hover:text-white hover:bg-white/5"
+                        }`}
+                      >
+                        <SlidersHorizontal size={11} />
+                        {hasOverrides ? "Overrides" : "Override"}
+                        {isExpanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+                      </button>
+                    </div>
+
+                    {/* Per-user override panel */}
+                    {isExpanded && (
+                      <div className="mx-5 mb-4 border border-white/8 rounded-xl overflow-hidden bg-white/[0.02]">
+                        <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-bold">Individual Overrides — {tech.name || tech.username}</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              These toggle specific permissions ON or OFF regardless of their level defaults.
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            {hasOverrides && (
+                              <button
+                                onClick={() => clearTechOverrides(tech.id)}
+                                disabled={updateTechPerms.isPending}
+                                className="text-[10px] text-red-400/70 hover:text-red-400 transition-colors disabled:opacity-40"
+                              >
+                                Clear all
+                              </button>
+                            )}
+                            <Button
+                              size="sm"
+                              onClick={() => saveTechOverrides(tech.id)}
+                              disabled={updateTechPerms.isPending}
+                              className="h-6 px-3 text-[10px] bg-gold text-black font-bold hover:bg-gold/90"
+                            >
+                              {updateTechPerms.isPending ? <Loader2 size={10} className="animate-spin" /> : "Save"}
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="divide-y divide-white/5">
+                          {PERMISSIONS_CONFIG.map(p => {
+                            const levelDefault = DEFAULT_PERMISSIONS[tech.techLevel ?? 0]?.[p.key] ?? false;
+                            const overrideVal  = overrides[p.key];
+                            const isSet        = overrideVal !== undefined;
+                            const effective    = isSet ? overrideVal : levelDefault;
+
+                            return (
+                              <div key={p.key} className="flex items-center justify-between px-4 py-2.5">
+                                <div>
+                                  <span className="text-xs text-white/80">{p.label}</span>
+                                  <span className={`ml-2 text-[10px] ${isSet ? "text-amber-400" : "text-muted-foreground"}`}>
+                                    {isSet ? "overridden" : `level default: ${levelDefault ? "on" : "off"}`}
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={() => toggleTechOverride(tech.id, p.key, overrides)}
+                                  className={`flex items-center gap-1.5 text-xs font-semibold transition-colors ${effective ? "text-green-400" : "text-muted-foreground"}`}
+                                >
+                                  {effective ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {allTechs.length === 0 && !techsQuery.isLoading && (
+                <div className="px-5 py-10 text-center text-sm text-muted-foreground">No team members assigned to this shop yet.</div>
+              )}
+            </div>
           </div>
         </div>
       )}
