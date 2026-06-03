@@ -2206,6 +2206,16 @@ Be realistic and specific to this exact market. Use your knowledge of US demogra
         return { success: true };
       }),
 
+    updateUserSubscription: superAdminProcedure
+      .input(z.object({
+        userId: z.number(),
+        subscriptionStatus: z.enum(['free', 'pro', 'agent']),
+      }))
+      .mutation(async ({ input }) => {
+        await db.updateUserSubscription(input.userId, { subscriptionStatus: input.subscriptionStatus });
+        return { success: true };
+      }),
+
     assignShopToUser: superAdminProcedure
       .input(z.object({
         userId: z.number(),
@@ -2343,6 +2353,42 @@ Do not use bullet points unless specifically asked. Write in plain paragraphs.`;
           source: input.source,
         });
         return { id };
+      }),
+  }),
+
+  // ─── Tech Portal ─────────────────────────────────────────────────────────
+  tech: router({
+    getMySupplyOrders: protectedProcedure.query(async ({ ctx }) => {
+      return db.getSupplyOrdersByUser(ctx.user.id);
+    }),
+
+    createSupplyOrder: protectedProcedure
+      .input(z.object({
+        items: z.array(z.object({ name: z.string(), qty: z.string(), unit: z.string(), notes: z.string().optional() })),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user.shopId) throw new Error("No shop assigned to your account");
+        const id = await db.createSupplyOrder({
+          shopId: ctx.user.shopId,
+          requestedById: ctx.user.id,
+          items: input.items,
+          notes: input.notes ?? null,
+          status: "pending",
+        });
+        return { id };
+      }),
+
+    getShopSupplyOrders: protectedProcedure.query(async ({ ctx }) => {
+      if (!ctx.user.shopId) return [];
+      return db.getSupplyOrdersByShop(ctx.user.shopId);
+    }),
+
+    updateOrderStatus: protectedProcedure
+      .input(z.object({ orderId: z.number(), status: z.enum(["pending","approved","ordered","delivered","rejected"]) }))
+      .mutation(async ({ ctx, input }) => {
+        await db.updateSupplyOrderStatus(input.orderId, input.status, ctx.user.id);
+        return { success: true };
       }),
   }),
 

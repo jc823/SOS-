@@ -33,6 +33,7 @@ export async function initializeDatabase(): Promise<void> {
         "subscriptionStatus" text NOT NULL DEFAULT 'free',
         "subscriptionId" text,
         "subscriptionPeriodEnd" timestamp,
+        "techLevel" integer,
         "createdAt" timestamp NOT NULL DEFAULT now(),
         "updatedAt" timestamp NOT NULL DEFAULT now(),
         "lastSignedIn" timestamp NOT NULL DEFAULT now()
@@ -65,6 +66,9 @@ export async function initializeDatabase(): Promise<void> {
         "logoUrl" text,
         "createdById" integer NOT NULL,
         "resultsUnlocked" boolean NOT NULL DEFAULT false,
+        "brandName" text,
+        "brandColor" text,
+        "brandAccentColor" text,
         "createdAt" timestamp NOT NULL DEFAULT now(),
         "updatedAt" timestamp NOT NULL DEFAULT now()
       )
@@ -434,6 +438,65 @@ export async function initializeDatabase(): Promise<void> {
         "updatedAt" timestamp NOT NULL DEFAULT now()
       )
     `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS "levelPermissions" (
+        "id" serial PRIMARY KEY,
+        "shopId" integer NOT NULL,
+        "level" integer NOT NULL,
+        "permissions" jsonb NOT NULL DEFAULT '{}',
+        "updatedAt" timestamp NOT NULL DEFAULT now(),
+        UNIQUE("shopId", "level")
+      )
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS "supplyOrders" (
+        "id" serial PRIMARY KEY,
+        "shopId" integer NOT NULL,
+        "requestedById" integer NOT NULL,
+        "items" jsonb NOT NULL,
+        "status" text NOT NULL DEFAULT 'pending',
+        "notes" text,
+        "approvedById" integer,
+        "approvedAt" timestamp,
+        "createdAt" timestamp NOT NULL DEFAULT now(),
+        "updatedAt" timestamp NOT NULL DEFAULT now()
+      )
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS "checklistTemplates" (
+        "id" serial PRIMARY KEY,
+        "shopId" integer NOT NULL,
+        "name" text NOT NULL,
+        "items" jsonb NOT NULL,
+        "isActive" boolean NOT NULL DEFAULT true,
+        "createdById" integer NOT NULL,
+        "createdAt" timestamp NOT NULL DEFAULT now(),
+        "updatedAt" timestamp NOT NULL DEFAULT now()
+      )
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS "checklistCompletions" (
+        "id" serial PRIMARY KEY,
+        "shopId" integer NOT NULL,
+        "templateId" integer NOT NULL,
+        "completedById" integer NOT NULL,
+        "date" text NOT NULL,
+        "completedItems" jsonb NOT NULL DEFAULT '[]',
+        "notes" text,
+        "createdAt" timestamp NOT NULL DEFAULT now(),
+        "updatedAt" timestamp NOT NULL DEFAULT now()
+      )
+    `;
+
+    // Add new columns to existing tables if they don't exist
+    await sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "techLevel" integer`;
+    await sql`ALTER TABLE "shops" ADD COLUMN IF NOT EXISTS "brandName" text`;
+    await sql`ALTER TABLE "shops" ADD COLUMN IF NOT EXISTS "brandColor" text`;
+    await sql`ALTER TABLE "shops" ADD COLUMN IF NOT EXISTS "brandAccentColor" text`;
 
     console.log("[DB] Schema initialized ✓");
   } catch (err) {

@@ -26,6 +26,7 @@ export const users = pgTable("users", {
   subscriptionStatus: text("subscriptionStatus").default("free").notNull(),
   subscriptionId: text("subscriptionId"),
   subscriptionPeriodEnd: timestamp("subscriptionPeriodEnd"),
+  techLevel: integer("techLevel"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -62,6 +63,9 @@ export const shops = pgTable("shops", {
   logoUrl: text("logoUrl"),
   createdById: integer("createdById").notNull(),
   resultsUnlocked: boolean("resultsUnlocked").default(false).notNull(),
+  brandName: text("brandName"),
+  brandColor: text("brandColor"),
+  brandAccentColor: text("brandAccentColor"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
@@ -470,3 +474,60 @@ export const actionPlanProgress = pgTable("actionPlanProgress", {
 });
 export type ActionPlanProgress = typeof actionPlanProgress.$inferSelect;
 export type InsertActionPlanProgress = typeof actionPlanProgress.$inferInsert;
+
+// ─── Branding (add to shops via ALTER, tracked here for reference) ───
+// These fields are added to initDb.ts for the shops table
+
+// ─── Tech Level Permissions ───
+export const levelPermissions = pgTable("levelPermissions", {
+  id: serial("id").primaryKey(),
+  shopId: integer("shopId").notNull(),
+  level: integer("level").notNull(), // 1, 2, or 3
+  permissions: jsonb("permissions").notNull().default('{}'),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type LevelPermission = typeof levelPermissions.$inferSelect;
+export type InsertLevelPermission = typeof levelPermissions.$inferInsert;
+
+// ─── Supply Orders ───
+export const supplyOrders = pgTable("supplyOrders", {
+  id: serial("id").primaryKey(),
+  shopId: integer("shopId").notNull(),
+  requestedById: integer("requestedById").notNull(),
+  items: jsonb("items").notNull(), // [{ name, qty, unit, notes }]
+  status: text("status").notNull().default("pending"), // pending | approved | ordered | delivered | rejected
+  notes: text("notes"),
+  approvedById: integer("approvedById"),
+  approvedAt: timestamp("approvedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type SupplyOrder = typeof supplyOrders.$inferSelect;
+export type InsertSupplyOrder = typeof supplyOrders.$inferInsert;
+
+// ─── Daily Checklist Templates ───
+export const checklistTemplates = pgTable("checklistTemplates", {
+  id: serial("id").primaryKey(),
+  shopId: integer("shopId").notNull(),
+  name: text("name").notNull(),
+  items: jsonb("items").notNull(), // [{ id, label, category, requiredLevel }]
+  isActive: boolean("isActive").default(true).notNull(),
+  createdById: integer("createdById").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type ChecklistTemplate = typeof checklistTemplates.$inferSelect;
+
+// ─── Daily Checklist Completions ───
+export const checklistCompletions = pgTable("checklistCompletions", {
+  id: serial("id").primaryKey(),
+  shopId: integer("shopId").notNull(),
+  templateId: integer("templateId").notNull(),
+  completedById: integer("completedById").notNull(),
+  date: text("date").notNull(), // YYYY-MM-DD
+  completedItems: jsonb("completedItems").notNull().default('[]'), // [itemId]
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type ChecklistCompletion = typeof checklistCompletions.$inferSelect;
