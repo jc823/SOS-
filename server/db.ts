@@ -1338,6 +1338,18 @@ export async function updateShopBranding(shopId: number, data: { brandName?: str
   await db.update(shops).set({ ...data, updatedAt: new Date() }).where(eq(shops.id, shopId));
 }
 
+export async function updateShop(shopId: number, data: { name?: string; location?: string; contactName?: string; contactEmail?: string; contactPhone?: string; notes?: string; logoUrl?: string }): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(shops).set({ ...data, updatedAt: new Date() }).where(eq(shops.id, shopId));
+}
+
+export async function deleteShop(shopId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(shops).where(eq(shops.id, shopId));
+}
+
 // ─── Tech Level / Permissions ─────────────────────────────────────────────────
 
 export async function getLevelPermissions(shopId: number): Promise<Array<{ level: number; permissions: Record<string, boolean> }>> {

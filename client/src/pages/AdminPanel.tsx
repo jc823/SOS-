@@ -10,6 +10,7 @@ import {
   ChevronLeft, Link2, Plus, Trash2, CheckCircle2, Copy, Ticket,
   Brain, AlertTriangle, RefreshCw, TrendingUp, Settings, BarChart3,
   UserCog, Mail, Calendar, Hash, Wrench, Palette, ShoppingCart, ClipboardList,
+  Phone, MapPin, NotebookText, ChevronDown, UserPlus, Building2,
 } from "lucide-react";
 
 type UserRole = "user" | "admin" | "super_admin" | "customer" | "shop_manager";
@@ -73,12 +74,15 @@ export default function AdminPanel() {
   const updateTechLevel    = trpc.admin.updateUserTechLevel.useMutation({ onSuccess: () => usersQuery.refetch() });
   const updateBranding     = trpc.admin.updateShopBranding.useMutation({ onSuccess: () => shopsQuery.refetch() });
   const upsertPermissions  = trpc.admin.upsertLevelPermissions.useMutation();
-  const assignShop     = trpc.admin.assignShopToUser.useMutation({ onSuccess: () => usersQuery.refetch() });
+  const assignShop     = trpc.admin.assignShopToUser.useMutation({ onSuccess: () => { usersQuery.refetch(); shopsQuery.refetch(); } });
   const unlockResults  = trpc.admin.unlockShopResults.useMutation({ onSuccess: () => shopsQuery.refetch() });
   const createInvite   = trpc.invites.create.useMutation({ onSuccess: () => invitesQuery.refetch() });
   const deleteInvite   = trpc.invites.delete.useMutation({ onSuccess: () => invitesQuery.refetch() });
   const runLearning    = trpc.admin.runLearningAnalysis.useMutation({ onSuccess: () => aiInsightsQuery.refetch() });
   const updateSetting  = trpc.admin.updateSetting.useMutation({ onSuccess: () => settingsQuery.refetch() });
+  const createShop     = trpc.admin.createShop.useMutation({ onSuccess: () => shopsQuery.refetch() });
+  const updateShop     = trpc.admin.updateShop.useMutation({ onSuccess: () => shopsQuery.refetch() });
+  const deleteShop     = trpc.admin.deleteShop.useMutation({ onSuccess: () => shopsQuery.refetch() });
   const createUser     = trpc.admin.createUser.useMutation({
     onSuccess: () => {
       usersQuery.refetch();
@@ -416,90 +420,18 @@ export default function AdminPanel() {
 
         {/* ── Shops ── */}
         {tab === "shops" && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-xl font-black mb-1">Shop Management</h1>
-                <p className="text-sm text-muted-foreground">Control which clients can see their full assessment results.</p>
-              </div>
-              {shopsQuery.isLoading && <Loader2 size={16} className="animate-spin text-muted-foreground" />}
-            </div>
-            <div className="bg-white/[0.03] border border-white/8 rounded-xl overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-white/5 bg-white/[0.02]">
-                      <th className="text-left px-6 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Shop</th>
-                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Score</th>
-                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Assessments</th>
-                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Portal Access</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {allShops.map(s => (
-                      <tr key={s.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.015] transition-colors">
-                        <td className="px-6 py-3">
-                          <div className="font-medium">{s.name}</div>
-                          <div className="text-[11px] text-muted-foreground flex items-center gap-1"><Hash size={10} />ID {s.id}</div>
-                        </td>
-                        <td className="px-4 py-3 font-mono font-bold">
-                          {s.latestOverallPercentage != null ? `${s.latestOverallPercentage}%` : <span className="text-muted-foreground font-normal text-xs">—</span>}
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground">{s.assessmentCount ?? 0}</td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => unlockResults.mutate({ shopId: s.id, unlocked: !s.resultsUnlocked })}
-                            disabled={unlockResults.isPending}
-                            className={`flex items-center gap-1.5 text-xs font-semibold transition-colors disabled:opacity-50 ${s.resultsUnlocked ? "text-green-400 hover:text-green-300" : "text-muted-foreground hover:text-white"}`}
-                          >
-                            {s.resultsUnlocked ? <><ToggleRight size={20} /> Results Unlocked</> : <><ToggleLeft size={20} /> Results Locked</>}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {allShops.length === 0 && !shopsQuery.isLoading && (
-                      <tr><td colSpan={4} className="px-6 py-10 text-center text-sm text-muted-foreground">No shops yet</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Shop Branding */}
-            {allShops.length > 0 && (
-              <div className="bg-white/[0.03] border border-white/8 rounded-xl p-6 space-y-4">
-                <h2 className="text-sm font-bold flex items-center gap-2"><Palette size={14} className="text-gold" /> Shop Branding</h2>
-                <p className="text-xs text-muted-foreground">Set custom branding for each shop. When shop employees log in, they'll see their company's identity.</p>
-                {allShops.map(s => (
-                  <BrandingEditor key={s.id} shop={s} onSave={(data) => updateBranding.mutate({ shopId: s.id, ...data })} saving={updateBranding.isPending} />
-                ))}
-              </div>
-            )}
-
-            {/* Checklist Templates */}
-            {allShops.length > 0 && (
-              <div className="bg-white/[0.03] border border-white/8 rounded-xl p-6 space-y-4">
-                <div>
-                  <h2 className="text-sm font-bold flex items-center gap-2"><ClipboardList size={14} className="text-gold" /> Daily Checklist Templates</h2>
-                  <p className="text-xs text-muted-foreground mt-1">Edit the checklist your techs see each day. Each shop has its own template.</p>
-                </div>
-                {allShops.map(s => (
-                  <ChecklistEditor key={s.id} shop={s} />
-                ))}
-              </div>
-            )}
-
-            {/* Level Permissions */}
-            {allShops.length > 0 && (
-              <div className="bg-white/[0.03] border border-white/8 rounded-xl p-6">
-                <h2 className="text-sm font-bold flex items-center gap-2 mb-1"><Wrench size={14} className="text-gold" /> Tech Level Permissions</h2>
-                <p className="text-xs text-muted-foreground mb-4">Define what each tech level can do. Select a shop to configure.</p>
-                <ShopSelector shops={allShops}>
-                  {(shopId) => <LevelPermissionsEditor shopId={shopId} />}
-                </ShopSelector>
-              </div>
-            )}
-          </div>
+          <ShopsTab
+            allShops={allShops}
+            allUsers={allUsers}
+            isLoading={shopsQuery.isLoading}
+            onCreateShop={(data) => createShop.mutate(data)}
+            onUpdateShop={(shopId, data) => updateShop.mutate({ shopId, ...data })}
+            onDeleteShop={(shopId) => deleteShop.mutate({ shopId })}
+            onUnlock={(shopId, unlocked) => unlockResults.mutate({ shopId, unlocked })}
+            onSaveBranding={(shopId, data) => updateBranding.mutate({ shopId, ...data })}
+            onAssignUser={(userId, shopId) => assignShop.mutate({ userId, shopId })}
+            isMutating={createShop.isPending || updateShop.isPending || deleteShop.isPending || unlockResults.isPending || updateBranding.isPending || assignShop.isPending}
+          />
         )}
 
         {/* ── Invites ── */}
@@ -766,6 +698,313 @@ export default function AdminPanel() {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
+// ─── Shops CRM Tab ────────────────────────────────────────────────────────────
+function ShopsTab({
+  allShops, allUsers, isLoading,
+  onCreateShop, onUpdateShop, onDeleteShop,
+  onUnlock, onSaveBranding, onAssignUser, isMutating,
+}: {
+  allShops: any[];
+  allUsers: any[];
+  isLoading: boolean;
+  onCreateShop: (data: any) => void;
+  onUpdateShop: (shopId: number, data: any) => void;
+  onDeleteShop: (shopId: number) => void;
+  onUnlock: (shopId: number, unlocked: boolean) => void;
+  onSaveBranding: (shopId: number, data: any) => void;
+  onAssignUser: (userId: number, shopId: number | null) => void;
+  isMutating: boolean;
+}) {
+  const [showCreate, setShowCreate] = useState(false);
+  const [expandedShop, setExpandedShop] = useState<number | null>(null);
+  const [activeShopTab, setActiveShopTab] = useState<Record<number, string>>({});
+
+  // Create form state
+  const [csName, setCsName]   = useState("");
+  const [csLoc, setCsLoc]     = useState("");
+  const [csCName, setCsCName] = useState("");
+  const [csCEmail, setCsCEmail] = useState("");
+  const [csCPhone, setCsCPhone] = useState("");
+  const [csNotes, setCsNotes] = useState("");
+
+  function submitCreate() {
+    if (!csName.trim()) return;
+    onCreateShop({ name: csName, location: csLoc || undefined, contactName: csCName || undefined, contactEmail: csCEmail || undefined, contactPhone: csCPhone || undefined, notes: csNotes || undefined });
+    setCsName(""); setCsLoc(""); setCsCName(""); setCsCEmail(""); setCsCPhone(""); setCsNotes("");
+    setShowCreate(false);
+  }
+
+  function shopTab(shopId: number) { return activeShopTab[shopId] ?? "profile"; }
+  function setShopTab(shopId: number, t: string) { setActiveShopTab(prev => ({ ...prev, [shopId]: t })); }
+
+  const shopUsers = (shopId: number) => allUsers.filter((u: any) => u.shopId === shopId);
+  const unassignedUsers = allUsers.filter((u: any) => !u.shopId && u.role !== "super_admin");
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-black mb-1">Shops</h1>
+          <p className="text-sm text-muted-foreground">Each shop is a profile — manage contacts, team, checklist, and access.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {isLoading && <Loader2 size={14} className="animate-spin text-muted-foreground" />}
+          <Button onClick={() => setShowCreate(v => !v)} className="bg-gold text-black font-bold hover:bg-gold/90 h-9 px-4 text-xs gap-1.5">
+            <Plus size={13} /> Add Shop
+          </Button>
+        </div>
+      </div>
+
+      {/* Create form */}
+      {showCreate && (
+        <div className="bg-white/[0.03] border border-gold/20 rounded-xl p-6 space-y-4">
+          <h2 className="text-sm font-bold flex items-center gap-2"><Building2 size={14} className="text-gold" /> New Shop</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2">
+              <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block">Shop Name *</Label>
+              <Input value={csName} onChange={e => setCsName(e.target.value)} placeholder="Obsidian Detailing" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
+            </div>
+            <div>
+              <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block">Location</Label>
+              <Input value={csLoc} onChange={e => setCsLoc(e.target.value)} placeholder="City, State" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
+            </div>
+            <div>
+              <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block">Contact Name</Label>
+              <Input value={csCName} onChange={e => setCsCName(e.target.value)} placeholder="Owner name" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
+            </div>
+            <div>
+              <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block">Contact Email</Label>
+              <Input type="email" value={csCEmail} onChange={e => setCsCEmail(e.target.value)} placeholder="owner@shop.com" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
+            </div>
+            <div>
+              <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block">Contact Phone</Label>
+              <Input value={csCPhone} onChange={e => setCsCPhone(e.target.value)} placeholder="(555) 000-0000" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
+            </div>
+            <div className="sm:col-span-2">
+              <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block">Notes</Label>
+              <Input value={csNotes} onChange={e => setCsNotes(e.target.value)} placeholder="Internal notes…" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <Button onClick={submitCreate} disabled={!csName.trim() || isMutating} className="bg-gold text-black font-bold hover:bg-gold/90 h-9 px-5 text-xs">
+              {isMutating ? <Loader2 size={12} className="animate-spin mr-1.5" /> : null} Create Shop
+            </Button>
+            <Button variant="outline" onClick={() => setShowCreate(false)} className="h-9 px-5 text-xs border-white/10">Cancel</Button>
+          </div>
+        </div>
+      )}
+
+      {/* Shop profiles */}
+      {allShops.length === 0 && !isLoading && (
+        <div className="bg-white/[0.03] border border-white/8 rounded-xl px-6 py-16 text-center">
+          <Building2 size={32} className="text-muted-foreground mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">No shops yet. Add one above to get started.</p>
+        </div>
+      )}
+
+      {allShops.map(shop => {
+        const isOpen = expandedShop === shop.id;
+        const members = shopUsers(shop.id);
+        const currentTab = shopTab(shop.id);
+
+        return (
+          <div key={shop.id} className="bg-white/[0.03] border border-white/8 rounded-xl overflow-hidden">
+            {/* Shop header row */}
+            <button
+              onClick={() => setExpandedShop(isOpen ? null : shop.id)}
+              className="w-full flex items-center gap-4 px-6 py-4 hover:bg-white/[0.02] transition-colors text-left"
+            >
+              <div className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0" style={{ background: (shop as any).brandColor ? `${(shop as any).brandColor}22` : undefined }}>
+                {shop.logoUrl ? <img src={shop.logoUrl} className="h-6 w-auto object-contain" alt="" /> : <Store size={16} className="text-gold" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold truncate">{shop.name}</span>
+                  {shop.resultsUnlocked && <span className="text-[9px] bg-green-500/10 text-green-400 border border-green-400/20 px-1.5 py-0.5 rounded font-medium">Portal On</span>}
+                </div>
+                <div className="flex items-center gap-3 mt-0.5 text-[11px] text-muted-foreground">
+                  {(shop as any).location && <span className="flex items-center gap-1"><MapPin size={9} />{(shop as any).location}</span>}
+                  {(shop as any).contactEmail && <span className="flex items-center gap-1"><Mail size={9} />{(shop as any).contactEmail}</span>}
+                  <span className="flex items-center gap-1"><Users size={9} />{members.length} members</span>
+                  <span className="flex items-center gap-1"><BarChart3 size={9} />{shop.assessmentCount ?? 0} assessments</span>
+                  {shop.latestOverallPercentage != null && <span className="font-mono text-gold">{shop.latestOverallPercentage}%</span>}
+                </div>
+              </div>
+              <ChevronDown size={14} className={`text-muted-foreground transition-transform shrink-0 ${isOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {/* Expanded content */}
+            {isOpen && (
+              <div className="border-t border-white/8">
+                {/* Inner tab bar */}
+                <div className="flex gap-1 p-2 bg-white/[0.01] border-b border-white/5">
+                  {["profile", "team", "checklist", "permissions", "branding"].map(t => (
+                    <button key={t} onClick={() => setShopTab(shop.id, t)}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold capitalize transition-all ${currentTab === t ? "bg-gold text-black" : "text-muted-foreground hover:text-white hover:bg-white/5"}`}>
+                      {t}
+                    </button>
+                  ))}
+                  <div className="flex-1" />
+                  <button
+                    onClick={() => { if (confirm(`Delete "${shop.name}"? This cannot be undone.`)) onDeleteShop(shop.id); }}
+                    className="px-2 py-1.5 text-red-400/60 hover:text-red-400 transition-colors text-[11px] flex items-center gap-1"
+                  >
+                    <Trash2 size={11} /> Delete
+                  </button>
+                </div>
+
+                {/* ── Profile ── */}
+                {currentTab === "profile" && (
+                  <ShopProfileEditor shop={shop} onSave={(data) => onUpdateShop(shop.id, data)} saving={isMutating} />
+                )}
+
+                {/* ── Team ── */}
+                {currentTab === "team" && (
+                  <div className="p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-bold">Team Members ({members.length})</h3>
+                    </div>
+
+                    {/* Current members */}
+                    {members.length > 0 ? (
+                      <div className="border border-white/8 rounded-xl divide-y divide-white/5">
+                        {members.map((u: any) => (
+                          <div key={u.id} className="flex items-center justify-between px-4 py-2.5">
+                            <div>
+                              <p className="text-xs font-medium">{u.name || u.username}</p>
+                              <p className="text-[10px] text-muted-foreground">{u.email ?? u.username} · {u.role}{u.techLevel ? ` · L${u.techLevel}` : ""}</p>
+                            </div>
+                            <button
+                              onClick={() => onAssignUser(u.id, null)}
+                              disabled={isMutating}
+                              className="text-[10px] text-muted-foreground hover:text-red-400 transition-colors disabled:opacity-40"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No team members yet.</p>
+                    )}
+
+                    {/* Add from unassigned */}
+                    {unassignedUsers.length > 0 && (
+                      <div>
+                        <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 block flex items-center gap-1.5"><UserPlus size={10} /> Add Existing User</Label>
+                        <div className="flex gap-2">
+                          <select
+                            id={`add-user-${shop.id}`}
+                            defaultValue=""
+                            className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gold/50"
+                          >
+                            <option value="">— Select user —</option>
+                            {unassignedUsers.map((u: any) => (
+                              <option key={u.id} value={u.id}>{u.name || u.username} ({u.role})</option>
+                            ))}
+                          </select>
+                          <Button
+                            onClick={() => {
+                              const sel = document.getElementById(`add-user-${shop.id}`) as HTMLSelectElement;
+                              if (sel?.value) onAssignUser(Number(sel.value), shop.id);
+                            }}
+                            disabled={isMutating}
+                            className="bg-gold text-black font-bold hover:bg-gold/90 h-9 px-4 text-xs"
+                          >
+                            Add
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Checklist ── */}
+                {currentTab === "checklist" && (
+                  <div className="p-5">
+                    <ChecklistEditor shop={shop} />
+                  </div>
+                )}
+
+                {/* ── Permissions ── */}
+                {currentTab === "permissions" && (
+                  <div className="p-5">
+                    <LevelPermissionsEditor shopId={shop.id} />
+                  </div>
+                )}
+
+                {/* ── Branding ── */}
+                {currentTab === "branding" && (
+                  <div className="p-5">
+                    <BrandingEditor shop={shop} onSave={(data) => onSaveBranding(shop.id, data)} saving={isMutating} />
+                  </div>
+                )}
+
+                {/* Portal access toggle — always visible at bottom */}
+                <div className="px-5 py-3 border-t border-white/5 flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Customer portal access</span>
+                  <button
+                    onClick={() => onUnlock(shop.id, !shop.resultsUnlocked)}
+                    disabled={isMutating}
+                    className={`flex items-center gap-1.5 text-xs font-semibold transition-colors disabled:opacity-50 ${shop.resultsUnlocked ? "text-green-400 hover:text-green-300" : "text-muted-foreground hover:text-white"}`}
+                  >
+                    {shop.resultsUnlocked ? <><ToggleRight size={20} /> Unlocked</> : <><ToggleLeft size={20} /> Locked</>}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Shop Profile Editor ───────────────────────────────────────────────────────
+function ShopProfileEditor({ shop, onSave, saving }: { shop: any; onSave: (data: any) => void; saving: boolean }) {
+  const [name, setName]     = useState(shop.name ?? "");
+  const [loc, setLoc]       = useState(shop.location ?? "");
+  const [cName, setCName]   = useState(shop.contactName ?? "");
+  const [cEmail, setCEmail] = useState(shop.contactEmail ?? "");
+  const [cPhone, setCPhone] = useState(shop.contactPhone ?? "");
+  const [notes, setNotes]   = useState(shop.notes ?? "");
+
+  return (
+    <div className="p-5 space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="sm:col-span-2">
+          <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block">Shop Name</Label>
+          <Input value={name} onChange={e => setName(e.target.value)} className="bg-white/5 border-white/10 text-white h-9 text-sm" />
+        </div>
+        <div>
+          <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block flex items-center gap-1"><MapPin size={9} /> Location</Label>
+          <Input value={loc} onChange={e => setLoc(e.target.value)} placeholder="City, State" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
+        </div>
+        <div>
+          <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block flex items-center gap-1"><UserCog size={9} /> Contact Name</Label>
+          <Input value={cName} onChange={e => setCName(e.target.value)} placeholder="Owner / manager name" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
+        </div>
+        <div>
+          <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block flex items-center gap-1"><Mail size={9} /> Contact Email</Label>
+          <Input type="email" value={cEmail} onChange={e => setCEmail(e.target.value)} placeholder="owner@shop.com" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
+        </div>
+        <div>
+          <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block flex items-center gap-1"><Phone size={9} /> Contact Phone</Label>
+          <Input value={cPhone} onChange={e => setCPhone(e.target.value)} placeholder="(555) 000-0000" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
+        </div>
+        <div className="sm:col-span-2">
+          <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block flex items-center gap-1"><NotebookText size={9} /> Notes</Label>
+          <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Internal notes…" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
+        </div>
+      </div>
+      <Button onClick={() => onSave({ name: name || undefined, location: loc || undefined, contactName: cName || undefined, contactEmail: cEmail || undefined, contactPhone: cPhone || undefined, notes: notes || undefined })}
+        disabled={saving} className="bg-gold text-black font-bold hover:bg-gold/90 h-9 px-5 text-xs">
+        {saving ? <Loader2 size={12} className="animate-spin mr-1.5" /> : null} Save Profile
+      </Button>
+    </div>
+  );
+}
+
 function BrandingEditor({ shop, onSave, saving }: { shop: any; onSave: (d: any) => void; saving: boolean }) {
   const [open, setOpen] = useState(false);
   const [brandName, setBrandName]   = useState((shop as any).brandName ?? "");
@@ -868,28 +1107,6 @@ function LevelPermissionsEditor({ shopId }: { shopId: number }) {
           </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-// ─── Shop Selector wrapper ─────────────────────────────────────────────────────
-function ShopSelector({ shops, children }: { shops: any[]; children: (shopId: number) => React.ReactNode }) {
-  const [selectedId, setSelectedId] = useState<number>(shops[0]?.id ?? 0);
-  return (
-    <div className="space-y-4">
-      {shops.length > 1 && (
-        <div>
-          <label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 block">Shop</label>
-          <select
-            value={selectedId}
-            onChange={e => setSelectedId(Number(e.target.value))}
-            className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gold/50"
-          >
-            {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        </div>
-      )}
-      {selectedId ? children(selectedId) : null}
     </div>
   );
 }
