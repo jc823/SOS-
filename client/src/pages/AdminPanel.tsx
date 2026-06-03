@@ -9,11 +9,27 @@ import {
   Shield, Users, Store, LogOut, Loader2, ToggleLeft, ToggleRight,
   ChevronLeft, Link2, Plus, Trash2, CheckCircle2, Copy, Ticket,
   Brain, AlertTriangle, RefreshCw, TrendingUp, Settings, BarChart3,
-  UserCog, Mail, Calendar, Hash,
+  UserCog, Mail, Calendar, Hash, Wrench, Palette, ShoppingCart,
 } from "lucide-react";
 
 type UserRole = "user" | "admin" | "super_admin" | "customer";
 type Tab = "overview" | "users" | "shops" | "invites" | "settings" | "ai";
+
+const PERMISSIONS_CONFIG = [
+  { key: "view_checklist",       label: "View Checklist" },
+  { key: "complete_checklist",   label: "Complete Checklist Items" },
+  { key: "view_supply_orders",   label: "View Supply Orders" },
+  { key: "create_supply_orders", label: "Submit Supply Orders" },
+  { key: "approve_supply_orders",label: "Approve/Reject Supply Orders" },
+  { key: "view_own_stats",       label: "View Own Stats" },
+  { key: "view_team_stats",      label: "View Team Stats" },
+];
+
+const DEFAULT_PERMISSIONS: Record<number, Record<string, boolean>> = {
+  1: { view_checklist: true,  complete_checklist: false, view_supply_orders: true,  create_supply_orders: false, approve_supply_orders: false, view_own_stats: true,  view_team_stats: false },
+  2: { view_checklist: true,  complete_checklist: true,  view_supply_orders: true,  create_supply_orders: true,  approve_supply_orders: false, view_own_stats: true,  view_team_stats: false },
+  3: { view_checklist: true,  complete_checklist: true,  view_supply_orders: true,  create_supply_orders: true,  approve_supply_orders: true,  view_own_stats: true,  view_team_stats: true  },
+};
 
 const ROLE_BADGE: Record<string, string> = {
   super_admin: "bg-gold/10 text-gold border-gold/20",
@@ -54,6 +70,9 @@ export default function AdminPanel() {
 
   const updateRole         = trpc.admin.updateUserRole.useMutation({ onSuccess: () => usersQuery.refetch() });
   const updateSubscription = trpc.admin.updateUserSubscription.useMutation({ onSuccess: () => usersQuery.refetch() });
+  const updateTechLevel    = trpc.admin.updateUserTechLevel.useMutation({ onSuccess: () => usersQuery.refetch() });
+  const updateBranding     = trpc.admin.updateShopBranding.useMutation({ onSuccess: () => shopsQuery.refetch() });
+  const upsertPermissions  = trpc.admin.upsertLevelPermissions.useMutation();
   const assignShop     = trpc.admin.assignShopToUser.useMutation({ onSuccess: () => usersQuery.refetch() });
   const unlockResults  = trpc.admin.unlockShopResults.useMutation({ onSuccess: () => shopsQuery.refetch() });
   const createInvite   = trpc.invites.create.useMutation({ onSuccess: () => invitesQuery.refetch() });
@@ -294,6 +313,7 @@ export default function AdminPanel() {
                       <th className="text-left px-6 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">User</th>
                       <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Role</th>
                       <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Plan</th>
+                    <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Tech Level</th>
                     <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Assigned Shop</th>
                       <th className="text-left px-4 py-3 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">Joined</th>
                       <th className="px-4 py-3 w-16" />
@@ -335,6 +355,21 @@ export default function AdminPanel() {
                             <option value="agent">agent</option>
                           </select>
                         </td>
+                        {/* Tech Level */}
+                        <td className="px-4 py-3">
+                          <select
+                            value={(u as any).techLevel ?? ""}
+                            onChange={e => updateTechLevel.mutate({ userId: u.id, techLevel: e.target.value ? Number(e.target.value) : null })}
+                            disabled={updateTechLevel.isPending}
+                            className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-gold/50 disabled:opacity-40 cursor-pointer"
+                          >
+                            <option value="">— None —</option>
+                            <option value="1">Level 1</option>
+                            <option value="2">Level 2</option>
+                            <option value="3">Level 3</option>
+                          </select>
+                        </td>
+                        {/* Shop assignment */}
                         <td className="px-4 py-3">
                           <select
                             value={u.shopId ?? ""}
@@ -427,6 +462,26 @@ export default function AdminPanel() {
                 </table>
               </div>
             </div>
+
+            {/* Shop Branding */}
+            {allShops.length > 0 && (
+              <div className="bg-white/[0.03] border border-white/8 rounded-xl p-6 space-y-4">
+                <h2 className="text-sm font-bold flex items-center gap-2"><Palette size={14} className="text-gold" /> Shop Branding</h2>
+                <p className="text-xs text-muted-foreground">Set custom branding for each shop. When shop employees log in, they'll see their company's identity.</p>
+                {allShops.map(s => (
+                  <BrandingEditor key={s.id} shop={s} onSave={(data) => updateBranding.mutate({ shopId: s.id, ...data })} saving={updateBranding.isPending} />
+                ))}
+              </div>
+            )}
+
+            {/* Level Permissions */}
+            {allShops.length > 0 && (
+              <div className="bg-white/[0.03] border border-white/8 rounded-xl p-6">
+                <h2 className="text-sm font-bold flex items-center gap-2 mb-1"><Wrench size={14} className="text-gold" /> Tech Level Permissions</h2>
+                <p className="text-xs text-muted-foreground mb-4">Define what each tech level can do. Select a shop to configure.</p>
+                <LevelPermissionsEditor shopId={allShops[0].id} />
+              </div>
+            )}
           </div>
         )}
 
@@ -685,6 +740,114 @@ export default function AdminPanel() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function BrandingEditor({ shop, onSave, saving }: { shop: any; onSave: (d: any) => void; saving: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [brandName, setBrandName]   = useState((shop as any).brandName ?? "");
+  const [brandColor, setBrandColor] = useState((shop as any).brandColor ?? "#C9A84C");
+  const [accentColor, setAccentColor] = useState((shop as any).brandAccentColor ?? "#A87C2A");
+  const [logoUrl, setLogoUrl]       = useState(shop.logoUrl ?? "");
+
+  return (
+    <div className="border border-white/8 rounded-xl overflow-hidden">
+      <button onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.02] transition-colors">
+        <div className="flex items-center gap-2">
+          {logoUrl ? <img src={logoUrl} className="h-5 w-auto object-contain" alt="" /> : <div className="w-5 h-5 rounded" style={{ background: brandColor }} />}
+          <span className="text-sm font-medium">{shop.name}</span>
+          {(shop as any).brandColor && <span className="text-[10px] text-gold">Branded</span>}
+        </div>
+        <ChevronLeft size={14} className={`text-muted-foreground transition-transform ${open ? "-rotate-90" : "rotate-180"}`} />
+      </button>
+      {open && (
+        <div className="border-t border-white/8 p-4 grid grid-cols-2 gap-3">
+          <div className="col-span-2">
+            <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block">Company Display Name</Label>
+            <Input value={brandName} onChange={e => setBrandName(e.target.value)} placeholder={shop.name} className="bg-white/5 border-white/10 text-white h-9 text-sm" />
+          </div>
+          <div className="col-span-2">
+            <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block">Logo URL</Label>
+            <Input value={logoUrl} onChange={e => setLogoUrl(e.target.value)} placeholder="https://..." className="bg-white/5 border-white/10 text-white h-9 text-sm" />
+          </div>
+          <div>
+            <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block">Primary Color</Label>
+            <div className="flex gap-2 items-center">
+              <input type="color" value={brandColor} onChange={e => setBrandColor(e.target.value)} className="w-9 h-9 rounded cursor-pointer bg-transparent border-0" />
+              <Input value={brandColor} onChange={e => setBrandColor(e.target.value)} className="bg-white/5 border-white/10 text-white h-9 text-sm flex-1" />
+            </div>
+          </div>
+          <div>
+            <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block">Accent Color</Label>
+            <div className="flex gap-2 items-center">
+              <input type="color" value={accentColor} onChange={e => setAccentColor(e.target.value)} className="w-9 h-9 rounded cursor-pointer bg-transparent border-0" />
+              <Input value={accentColor} onChange={e => setAccentColor(e.target.value)} className="bg-white/5 border-white/10 text-white h-9 text-sm flex-1" />
+            </div>
+          </div>
+          <div className="col-span-2">
+            <Button onClick={() => onSave({ brandName: brandName || undefined, brandColor, brandAccentColor: accentColor, logoUrl: logoUrl || undefined })}
+              disabled={saving} className="bg-gold text-black font-bold hover:bg-gold/90 h-9 px-5 text-xs">
+              {saving ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
+              Save Branding
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LevelPermissionsEditor({ shopId }: { shopId: number }) {
+  const utils = trpc.useUtils();
+  const permQuery = trpc.admin.getLevelPermissions.useQuery({ shopId });
+  const upsert = trpc.admin.upsertLevelPermissions.useMutation({ onSuccess: () => permQuery.refetch() });
+  const [localPerms, setLocalPerms] = useState<Record<number, Record<string, boolean>>>({});
+
+  const getPerms = (level: number): Record<string, boolean> => {
+    if (localPerms[level]) return localPerms[level];
+    const fromServer = permQuery.data?.find(p => p.level === level)?.permissions;
+    return fromServer ?? DEFAULT_PERMISSIONS[level] ?? {};
+  };
+
+  function toggle(level: number, key: string) {
+    const current = getPerms(level);
+    const updated = { ...current, [key]: !current[key] };
+    setLocalPerms(prev => ({ ...prev, [level]: updated }));
+  }
+
+  function save(level: number) {
+    upsert.mutate({ shopId, level, permissions: getPerms(level) });
+  }
+
+  return (
+    <div className="space-y-4">
+      {[1, 2, 3].map(level => (
+        <div key={level} className="border border-white/8 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
+            <span className="text-xs font-bold">
+              Level {level} — {level === 1 ? "Apprentice" : level === 2 ? "Technician" : "Lead Tech"}
+            </span>
+            <Button onClick={() => save(level)} disabled={upsert.isPending} className="h-7 px-3 text-[10px] bg-gold text-black font-bold hover:bg-gold/90">
+              Save Level {level}
+            </Button>
+          </div>
+          <div className="divide-y divide-white/5">
+            {PERMISSIONS_CONFIG.map(p => (
+              <div key={p.key} className="flex items-center justify-between px-4 py-2.5">
+                <span className="text-xs text-white/80">{p.label}</span>
+                <button onClick={() => toggle(level, p.key)}
+                  className={`flex items-center gap-1.5 text-xs font-semibold transition-colors ${getPerms(level)[p.key] ? "text-green-400" : "text-muted-foreground"}`}>
+                  {getPerms(level)[p.key] ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

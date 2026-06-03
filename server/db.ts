@@ -1339,3 +1339,11 @@ export async function upsertLevelPermissions(shopId: number, level: number, perm
     set: { permissions, updatedAt: new Date() },
   });
 }
+
+// ─── Tech Level Management ────────────────────────────────────────────────────
+
+export async function updateUserTechLevel(userId: number, techLevel: number | null): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set({ techLevel, updatedAt: new Date() }).where(eq(users.id, userId));
+}

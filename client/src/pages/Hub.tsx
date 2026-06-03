@@ -114,6 +114,12 @@ export default function Hub() {
   const publicStatsQuery = trpc.publicStats.get.useQuery(undefined, { enabled: !isAuthenticated && !loading });
   const publicStats = publicStatsQuery.data;
 
+  // Redirect techs and customers away from Hub
+  if (!loading && user) {
+    if ((user as any).techLevel) { navigate('/tech'); return null; }
+    if (user.role === 'customer') { navigate('/portal'); return null; }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
