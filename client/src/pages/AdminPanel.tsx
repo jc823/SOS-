@@ -5,6 +5,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import {
   Shield, Users, Store, LogOut, Loader2, ToggleLeft, ToggleRight,
   ChevronLeft, Link2, Plus, Trash2, CheckCircle2, Copy, Ticket,
@@ -74,15 +75,27 @@ export default function AdminPanel() {
   const updateTechLevel    = trpc.admin.updateUserTechLevel.useMutation({ onSuccess: () => usersQuery.refetch() });
   const updateBranding     = trpc.admin.updateShopBranding.useMutation({ onSuccess: () => shopsQuery.refetch() });
   const upsertPermissions  = trpc.admin.upsertLevelPermissions.useMutation();
-  const assignShop     = trpc.admin.assignShopToUser.useMutation({ onSuccess: () => { usersQuery.refetch(); shopsQuery.refetch(); } });
+  const assignShop     = trpc.admin.assignShopToUser.useMutation({
+    onSuccess: () => { usersQuery.refetch(); shopsQuery.refetch(); toast.success("Team updated."); },
+    onError: (err) => toast.error(`Failed: ${err.message}`),
+  });
   const unlockResults  = trpc.admin.unlockShopResults.useMutation({ onSuccess: () => shopsQuery.refetch() });
   const createInvite   = trpc.invites.create.useMutation({ onSuccess: () => invitesQuery.refetch() });
   const deleteInvite   = trpc.invites.delete.useMutation({ onSuccess: () => invitesQuery.refetch() });
   const runLearning    = trpc.admin.runLearningAnalysis.useMutation({ onSuccess: () => aiInsightsQuery.refetch() });
   const updateSetting  = trpc.admin.updateSetting.useMutation({ onSuccess: () => settingsQuery.refetch() });
-  const createShopMut  = trpc.admin.createShop.useMutation({ onSuccess: () => shopsQuery.refetch() });
-  const updateShop     = trpc.admin.updateShop.useMutation({ onSuccess: () => shopsQuery.refetch() });
-  const deleteShop     = trpc.admin.deleteShop.useMutation({ onSuccess: () => shopsQuery.refetch() });
+  const createShopMut  = trpc.admin.createShop.useMutation({
+    onSuccess: () => { shopsQuery.refetch(); toast.success("Shop created!"); },
+    onError: (err) => toast.error(`Failed to create shop: ${err.message}`),
+  });
+  const updateShop     = trpc.admin.updateShop.useMutation({
+    onSuccess: () => { shopsQuery.refetch(); toast.success("Shop saved."); },
+    onError: (err) => toast.error(`Save failed: ${err.message}`),
+  });
+  const deleteShop     = trpc.admin.deleteShop.useMutation({
+    onSuccess: () => { shopsQuery.refetch(); toast.success("Shop deleted."); },
+    onError: (err) => toast.error(`Delete failed: ${err.message}`),
+  });
   const createUser     = trpc.admin.createUser.useMutation({
     onSuccess: () => {
       usersQuery.refetch();
