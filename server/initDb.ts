@@ -504,6 +504,22 @@ export async function initializeDatabase(): Promise<void> {
     await sql`ALTER TABLE "shops" ADD COLUMN IF NOT EXISTS "contactPhone" text`;
     await sql`ALTER TABLE "shops" ADD COLUMN IF NOT EXISTS "notes" text`;
 
+    // assessments columns added over time
+    await sql`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "assessmentType" text NOT NULL DEFAULT 'assessment'`;
+    await sql`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "customTarget" integer`;
+    await sql`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "notes" text`;
+    await sql`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "scalingProbability" real`;
+    await sql`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "pillarResults" jsonb`;
+    await sql`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "bottlenecks" jsonb`;
+    await sql`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "topLeveragePriorities" jsonb`;
+    await sql`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "actionPlan" jsonb`;
+    await sql`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "currentRevenue" integer`;
+    await sql`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "goalRevenue" integer`;
+    await sql`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "businessProfile" jsonb`;
+    await sql`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "previousAssessmentId" integer`;
+    await sql`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "actualRevenue" integer`;
+    await sql`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "predictions" text`;
+
     console.log("[DB] Schema initialized ✓");
   } catch (err) {
     console.error("[DB] Schema initialization failed:", err);
