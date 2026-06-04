@@ -498,6 +498,11 @@ export async function initializeDatabase(): Promise<void> {
     await sql`ALTER TABLE "shops" ADD COLUMN IF NOT EXISTS "brandName" text`;
     await sql`ALTER TABLE "shops" ADD COLUMN IF NOT EXISTS "brandColor" text`;
     await sql`ALTER TABLE "shops" ADD COLUMN IF NOT EXISTS "brandAccentColor" text`;
+    await sql`ALTER TABLE "shops" ADD COLUMN IF NOT EXISTS "location" text`;
+    await sql`ALTER TABLE "shops" ADD COLUMN IF NOT EXISTS "contactName" text`;
+    await sql`ALTER TABLE "shops" ADD COLUMN IF NOT EXISTS "contactEmail" text`;
+    await sql`ALTER TABLE "shops" ADD COLUMN IF NOT EXISTS "contactPhone" text`;
+    await sql`ALTER TABLE "shops" ADD COLUMN IF NOT EXISTS "notes" text`;
 
     console.log("[DB] Schema initialized ✓");
   } catch (err) {
