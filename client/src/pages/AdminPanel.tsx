@@ -96,6 +96,10 @@ export default function AdminPanel() {
     onSuccess: () => { shopsQuery.refetch(); toast.success("Shop deleted."); },
     onError: (err) => toast.error(`Delete failed: ${err.message}`),
   });
+  const bulkDeleteShops = trpc.admin.bulkDeleteShops.useMutation({
+    onSuccess: (res) => { shopsQuery.refetch(); toast.success(`${res.deleted} shop${res.deleted !== 1 ? "s" : ""} deleted.`); },
+    onError: (err) => toast.error(`Bulk delete failed: ${err.message}`),
+  });
   const createUser     = trpc.admin.createUser.useMutation({
     onSuccess: () => {
       usersQuery.refetch();
@@ -440,10 +444,11 @@ export default function AdminPanel() {
             createShopMut={createShopMut}
             onUpdateShop={(shopId, data) => updateShop.mutate({ shopId, ...data })}
             onDeleteShop={(shopId) => deleteShop.mutate({ shopId })}
+            onBulkDelete={(shopIds) => bulkDeleteShops.mutate({ shopIds })}
             onUnlock={(shopId, unlocked) => unlockResults.mutate({ shopId, unlocked })}
             onSaveBranding={(shopId, data) => updateBranding.mutate({ shopId, ...data })}
             onAssignUser={(userId, shopId) => assignShop.mutate({ userId, shopId })}
-            isMutating={updateShop.isPending || deleteShop.isPending || unlockResults.isPending || updateBranding.isPending || assignShop.isPending}
+            isMutating={updateShop.isPending || deleteShop.isPending || bulkDeleteShops.isPending || unlockResults.isPending || updateBranding.isPending || assignShop.isPending}
           />
         )}
 
@@ -714,7 +719,7 @@ export default function AdminPanel() {
 // ─── Shops CRM Tab ────────────────────────────────────────────────────────────
 function ShopsTab({
   allShops, allUsers, isLoading,
-  createShopMut, onUpdateShop, onDeleteShop,
+  createShopMut, onUpdateShop, onDeleteShop, onBulkDelete,
   onUnlock, onSaveBranding, onAssignUser, isMutating,
 }: {
   allShops: any[];
@@ -723,6 +728,7 @@ function ShopsTab({
   createShopMut: ReturnType<typeof trpc.admin.createShop.useMutation>;
   onUpdateShop: (shopId: number, data: any) => void;
   onDeleteShop: (shopId: number) => void;
+  onBulkDelete: (shopIds: number[]) => void;
   onUnlock: (shopId: number, unlocked: boolean) => void;
   onSaveBranding: (shopId: number, data: any) => void;
   onAssignUser: (userId: number, shopId: number | null) => void;
@@ -731,6 +737,29 @@ function ShopsTab({
   const [showCreate, setShowCreate] = useState(false);
   const [expandedShop, setExpandedShop] = useState<number | null>(null);
   const [activeShopTab, setActiveShopTab] = useState<Record<number, string>>({});
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+
+  const allSelected = allShops.length > 0 && allShops.every(s => selected.has(s.id));
+  const someSelected = selected.size > 0;
+
+  function toggleSelect(id: number) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setSelected(allSelected ? new Set() : new Set(allShops.map(s => s.id)));
+  }
+
+  function confirmBulkDelete() {
+    if (!confirm(`Delete ${selected.size} shop${selected.size !== 1 ? "s" : ""}? This cannot be undone.`)) return;
+    onBulkDelete([...selected]);
+    setSelected(new Set());
+    setExpandedShop(null);
+  }
 
   // Create form state
   const [csName, setCsName]   = useState("");
@@ -762,18 +791,43 @@ function ShopsTab({
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-xl font-black mb-1">Shops</h1>
           <p className="text-sm text-muted-foreground">Each shop is a profile — manage contacts, team, checklist, and access.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {isLoading && <Loader2 size={14} className="animate-spin text-muted-foreground" />}
+          {someSelected && (
+            <Button
+              onClick={confirmBulkDelete}
+              disabled={isMutating}
+              className="h-9 px-4 text-xs bg-red-500/10 text-red-400 border border-red-400/20 hover:bg-red-500/20 font-bold gap-1.5"
+              variant="outline"
+            >
+              <Trash2 size={13} /> Delete {selected.size} selected
+            </Button>
+          )}
           <Button onClick={() => setShowCreate(v => !v)} className="bg-gold text-black font-bold hover:bg-gold/90 h-9 px-4 text-xs gap-1.5">
             <Plus size={13} /> Add Shop
           </Button>
         </div>
       </div>
+
+      {/* Select-all row — only when shops exist */}
+      {allShops.length > 0 && (
+        <div className="flex items-center gap-2 px-1">
+          <input
+            type="checkbox"
+            checked={allSelected}
+            onChange={toggleAll}
+            className="w-3.5 h-3.5 accent-gold cursor-pointer"
+          />
+          <span className="text-[11px] text-muted-foreground">
+            {allSelected ? "Deselect all" : someSelected ? `${selected.size} of ${allShops.length} selected` : "Select all"}
+          </span>
+        </div>
+      )}
 
       {/* Create form */}
       {showCreate && (
@@ -833,10 +887,18 @@ function ShopsTab({
         return (
           <div key={shop.id} className="bg-white/[0.03] border border-white/8 rounded-xl overflow-hidden">
             {/* Shop header row */}
-            <button
-              onClick={() => setExpandedShop(isOpen ? null : shop.id)}
-              className="w-full flex items-center gap-4 px-6 py-4 hover:bg-white/[0.02] transition-colors text-left"
-            >
+            <div className="flex items-center gap-3 px-4 py-4">
+              <input
+                type="checkbox"
+                checked={selected.has(shop.id)}
+                onChange={() => toggleSelect(shop.id)}
+                onClick={e => e.stopPropagation()}
+                className="w-3.5 h-3.5 accent-gold cursor-pointer shrink-0"
+              />
+              <button
+                onClick={() => setExpandedShop(isOpen ? null : shop.id)}
+                className="flex-1 flex items-center gap-4 text-left min-w-0"
+              >
               <div className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0" style={{ background: (shop as any).brandColor ? `${(shop as any).brandColor}22` : undefined }}>
                 {shop.logoUrl ? <img src={shop.logoUrl} className="h-6 w-auto object-contain" alt="" /> : <Store size={16} className="text-gold" />}
               </div>
@@ -854,7 +916,8 @@ function ShopsTab({
                 </div>
               </div>
               <ChevronDown size={14} className={`text-muted-foreground transition-transform shrink-0 ${isOpen ? "rotate-180" : ""}`} />
-            </button>
+              </button>
+            </div>
 
             {/* Expanded content */}
             {isOpen && (
