@@ -251,27 +251,47 @@ export async function getShopByName(name: string) {
 export async function getShopsWithLatestAssessment() {
   const db = await getDb();
   if (!db) return [];
-  // Get all shops with their latest assessment data in a single query
-  const result = await db.select({
+
+  // Base shop fields — always available
+  const baseShops = await db.select({
     id: shops.id,
     name: shops.name,
     logoUrl: shops.logoUrl,
-    latestAssessmentId: sql<number>`(SELECT a.id FROM assessments a WHERE a.shopId = ${shops.id} ORDER BY a.createdAt DESC LIMIT 1)`,
-    latestAssessmentDate: sql<string>`(SELECT a.assessmentDate FROM assessments a WHERE a.shopId = ${shops.id} ORDER BY a.createdAt DESC LIMIT 1)`,
-    latestAssessorName: sql<string>`(SELECT a.assessorName FROM assessments a WHERE a.shopId = ${shops.id} ORDER BY a.createdAt DESC LIMIT 1)`,
-    latestOverallPercentage: sql<number>`(SELECT a.overallPercentage FROM assessments a WHERE a.shopId = ${shops.id} ORDER BY a.createdAt DESC LIMIT 1)`,
-    latestScalingProbability: sql<number>`(SELECT a.scalingProbability FROM assessments a WHERE a.shopId = ${shops.id} ORDER BY a.createdAt DESC LIMIT 1)`,
-    latestRevenueTier: sql<string>`(SELECT a.revenueTier FROM assessments a WHERE a.shopId = ${shops.id} ORDER BY a.createdAt DESC LIMIT 1)`,
-    latestCustomTarget: sql<number>`(SELECT a.customTarget FROM assessments a WHERE a.shopId = ${shops.id} ORDER BY a.createdAt DESC LIMIT 1)`,
-    latestCurrentRevenue: sql<number>`(SELECT a.currentRevenue FROM assessments a WHERE a.shopId = ${shops.id} ORDER BY a.createdAt DESC LIMIT 1)`,
-    latestScores: sql<any>`(SELECT a.scores FROM assessments a WHERE a.shopId = ${shops.id} ORDER BY a.createdAt DESC LIMIT 1)`,
-    latestBusinessProfile: sql<any>`(SELECT a.businessProfile FROM assessments a WHERE a.shopId = ${shops.id} ORDER BY a.createdAt DESC LIMIT 1)`,
-    assessmentCount: sql<number>`(SELECT COUNT(*) FROM assessments a WHERE a.shopId = ${shops.id})`,
+    location: shops.location,
+    contactName: shops.contactName,
+    contactEmail: shops.contactEmail,
+    contactPhone: shops.contactPhone,
+    notes: shops.notes,
+    brandName: shops.brandName,
+    brandColor: shops.brandColor,
+    brandAccentColor: shops.brandAccentColor,
     resultsUnlocked: shops.resultsUnlocked,
-  })
-    .from(shops)
-    .orderBy(desc(shops.updatedAt));
-  return result;
+    createdAt: shops.createdAt,
+    updatedAt: shops.updatedAt,
+  }).from(shops).orderBy(desc(shops.updatedAt));
+
+  // Try to enrich with assessment stats — if assessments table is missing
+  // columns (older DB), fall back gracefully so shops still display.
+  try {
+    const enriched = await db.select({
+      shopId: sql<number>`${shops.id}`,
+      latestAssessmentId: sql<number>`(SELECT a.id FROM assessments a WHERE a."shopId" = ${shops.id} ORDER BY a."createdAt" DESC LIMIT 1)`,
+      latestAssessmentDate: sql<string>`(SELECT a."assessmentDate" FROM assessments a WHERE a."shopId" = ${shops.id} ORDER BY a."createdAt" DESC LIMIT 1)`,
+      latestOverallPercentage: sql<number>`(SELECT a."overallPercentage" FROM assessments a WHERE a."shopId" = ${shops.id} ORDER BY a."createdAt" DESC LIMIT 1)`,
+      latestScalingProbability: sql<number>`(SELECT a."scalingProbability" FROM assessments a WHERE a."shopId" = ${shops.id} ORDER BY a."createdAt" DESC LIMIT 1)`,
+      latestRevenueTier: sql<string>`(SELECT a."revenueTier" FROM assessments a WHERE a."shopId" = ${shops.id} ORDER BY a."createdAt" DESC LIMIT 1)`,
+      latestCustomTarget: sql<number>`(SELECT a."customTarget" FROM assessments a WHERE a."shopId" = ${shops.id} ORDER BY a."createdAt" DESC LIMIT 1)`,
+      latestCurrentRevenue: sql<number>`(SELECT a."currentRevenue" FROM assessments a WHERE a."shopId" = ${shops.id} ORDER BY a."createdAt" DESC LIMIT 1)`,
+      latestBusinessProfile: sql<any>`(SELECT a."businessProfile" FROM assessments a WHERE a."shopId" = ${shops.id} ORDER BY a."createdAt" DESC LIMIT 1)`,
+      assessmentCount: sql<number>`(SELECT COUNT(*) FROM assessments a WHERE a."shopId" = ${shops.id})`,
+    }).from(shops).orderBy(desc(shops.updatedAt));
+
+    const statsMap = new Map(enriched.map(r => [r.shopId, r]));
+    return baseShops.map(s => ({ ...s, ...(statsMap.get(s.id) ?? {}) }));
+  } catch {
+    // Assessment columns not yet migrated — return shops without stats
+    return baseShops.map(s => ({ ...s, assessmentCount: 0 }));
+  }
 }
 
 // ─── Assessments ───
