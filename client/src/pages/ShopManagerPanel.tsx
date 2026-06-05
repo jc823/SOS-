@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -72,10 +72,15 @@ export default function ShopManagerPanel() {
   // Admins can browse all shops; shop_manager is locked to their assigned shop
   const managedShopsQuery = trpc.tech.listManagedShops.useQuery(undefined, {
     enabled: !loading && isAdmin,
-    onSuccess: (shops: any[]) => {
-      if (!selectedShopId && shops.length > 0) setSelectedShopId(shops[0].id);
-    },
   });
+
+  // Auto-select first shop when data loads (onSuccess removed in React Query v5)
+  useEffect(() => {
+    const shops = managedShopsQuery.data as any[] | undefined;
+    if (shops && shops.length > 0 && !selectedShopId) {
+      setSelectedShopId(shops[0].id);
+    }
+  }, [managedShopsQuery.data]);
 
   if (loading) {
     return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><Loader2 size={24} className="animate-spin text-gold" /></div>;
