@@ -2199,6 +2199,13 @@ Be realistic and specific to this exact market. Use your knowledge of US demogra
         return { success: true };
       }),
 
+    bulkDeleteShops: superAdminProcedure
+      .input(z.object({ shopIds: z.array(z.number()) }))
+      .mutation(async ({ input }) => {
+        await Promise.all(input.shopIds.map(id => db.deleteShop(id)));
+        return { deleted: input.shopIds.length };
+      }),
+
     listAllUsers: superAdminProcedure.query(async () => {
       return db.getAllUsers();
     }),
