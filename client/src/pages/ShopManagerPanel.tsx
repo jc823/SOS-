@@ -248,7 +248,7 @@ function ShopContent({
 
   const checklistQuery  = trpc.tech.getChecklistTemplate.useQuery({ shopId });
   const techsQuery      = trpc.tech.getShopTechs.useQuery({ shopId });
-  const ordersQuery     = trpc.tech.getShopSupplyOrders.useQuery();
+  const ordersQuery     = trpc.tech.getShopSupplyOrders.useQuery({ shopId });
   const permQuery       = trpc.admin.getLevelPermissions.useQuery({ shopId });
   const productsQuery   = trpc.tech.getShopProducts.useQuery({ shopId });
 

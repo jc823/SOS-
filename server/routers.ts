@@ -2521,10 +2521,14 @@ Do not use bullet points unless specifically asked. Write in plain paragraphs.`;
         return { id };
       }),
 
-    getShopSupplyOrders: protectedProcedure.query(async ({ ctx }) => {
-      if (!ctx.user.shopId) return [];
-      return db.getSupplyOrdersByShop(ctx.user.shopId);
-    }),
+    getShopSupplyOrders: shopManagerProcedure
+      .input(z.object({ shopId: z.number().optional() }))
+      .query(async ({ ctx, input }) => {
+        const isAdmin = ctx.user.role === "admin" || ctx.user.role === "super_admin";
+        const shopId = isAdmin && input.shopId ? input.shopId : ctx.user.shopId;
+        if (!shopId) return [];
+        return db.getSupplyOrdersByShop(shopId);
+      }),
 
     updateOrderStatus: protectedProcedure
       .input(z.object({ orderId: z.number(), status: z.enum(["pending","approved","ordered","delivered","rejected"]) }))
