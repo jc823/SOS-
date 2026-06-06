@@ -57,6 +57,11 @@ export default function TechPortal() {
   // custom items fallback
   const [customItems, setCustomItems] = useState<Array<{ name: string; qty: string; unit: string }>>([]);
   const [showCustom, setShowCustom] = useState(false);
+  // Daily use log state
+  const [showDailyLog, setShowDailyLog] = useState(false);
+  const [dailyQtys, setDailyQtys] = useState<Record<number, number>>({});
+  const [dailyNotes, setDailyNotes] = useState("");
+  const [dailySuccess, setDailySuccess] = useState(false);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'shop_manager';
   const shopId = (user as any)?.shopId ?? null;
@@ -97,6 +102,17 @@ export default function TechPortal() {
     onSuccess: () => supplyOrdersQuery.refetch(),
   });
 
+  const logDailyUse = trpc.tech.logDailyUse.useMutation({
+    onSuccess: () => {
+      setDailySuccess(true);
+      setDailyQtys({});
+      setDailyNotes("");
+      setShowDailyLog(false);
+      catalogQuery.refetch();
+      setTimeout(() => setDailySuccess(false), 3000);
+    },
+  });
+
   if (loading) {
     return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><Loader2 size={24} className="animate-spin text-gold" /></div>;
   }
@@ -126,7 +142,7 @@ export default function TechPortal() {
   }
 
   function addCustomItem() {
-    setCustomItems(prev => [...prev, { name: "", qty: "1", unit: "each" }]);
+    setCustomItems(prev => [...prev, { name: "", qty: "1", unit: "Unit" }]);
   }
 
   function updateCustomItem(i: number, field: string, value: string) {
@@ -416,8 +432,10 @@ export default function TechPortal() {
                           placeholder="Qty" type="number" min="1" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
                       </div>
                       <div className="col-span-3">
-                        <Input value={item.unit} onChange={e => updateCustomItem(i, "unit", e.target.value)}
-                          placeholder="Unit" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
+                        <select value={item.unit} onChange={e => updateCustomItem(i, "unit", e.target.value)}
+                          className="w-full bg-white/5 border border-white/10 rounded-lg px-2 h-9 text-sm text-white focus:outline-none focus:border-gold/50">
+                          {["16 oz Bottle","Gallon","5 Gallon","Unit","Kit"].map(u => <option key={u} value={u}>{u}</option>)}
+                        </select>
                       </div>
                       <div className="col-span-2 flex justify-end">
                         <button onClick={() => removeCustomItem(i)} className="text-muted-foreground hover:text-red-400 transition-colors">
@@ -448,6 +466,76 @@ export default function TechPortal() {
                 </Button>
               </div>
             )}
+
+            {/* ── Daily Chemical Use Log ── */}
+            {dailySuccess && (
+              <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-3 text-sm text-green-400">
+                <CheckCircle2 size={16} /> Daily use logged!
+              </div>
+            )}
+            <div className="bg-white/[0.03] border border-white/8 rounded-xl overflow-hidden">
+              <button
+                onClick={() => setShowDailyLog(v => !v)}
+                className="w-full flex items-center justify-between px-5 py-3 text-left"
+              >
+                <div>
+                  <p className="text-xs font-bold">Log Today's Chemical Use</p>
+                  <p className="text-[10px] text-muted-foreground">Mark what you used today — tracked with your name and timestamp</p>
+                </div>
+                {showDailyLog ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />}
+              </button>
+              {showDailyLog && (
+                <div className="border-t border-white/5 px-5 py-4 space-y-4">
+                  {catalogQuery.isLoading && <p className="text-xs text-muted-foreground">Loading catalog…</p>}
+                  {(catalogQuery.data ?? []).length === 0 && !catalogQuery.isLoading && (
+                    <p className="text-xs text-muted-foreground">No catalog set up yet.</p>
+                  )}
+                  {(() => {
+                    const catalog = catalogQuery.data ?? [];
+                    const cats = [...new Set(catalog.map((p: any) => p.category ?? "General"))];
+                    return cats.map(cat => (
+                      <div key={cat} className="space-y-2">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{cat}</p>
+                        <div className="space-y-1">
+                          {catalog.filter((p: any) => (p.category ?? "General") === cat).map((product: any) => {
+                            const qty = dailyQtys[product.id] ?? 0;
+                            return (
+                              <div key={product.id} className="flex items-center justify-between">
+                                <span className="text-xs text-white/80">{product.name} <span className="text-muted-foreground">({product.unit})</span></span>
+                                <div className="flex items-center gap-2">
+                                  <button onClick={() => setDailyQtys(p => { const n = {...p}; if ((n[product.id]??0) > 0) n[product.id] = (n[product.id]??0) - 1; if (n[product.id] === 0) delete n[product.id]; return n; })}
+                                    className="w-6 h-6 rounded border border-white/10 text-muted-foreground hover:text-white flex items-center justify-center text-sm">−</button>
+                                  <span className="text-xs font-mono w-6 text-center">{qty}</span>
+                                  <button onClick={() => setDailyQtys(p => ({ ...p, [product.id]: (p[product.id]??0) + 1 }))}
+                                    className="w-6 h-6 rounded border border-white/10 text-muted-foreground hover:text-white flex items-center justify-center text-sm">+</button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                  <div>
+                    <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 block">Notes (optional)</Label>
+                    <Input value={dailyNotes} onChange={e => setDailyNotes(e.target.value)}
+                      placeholder="e.g. Full detail on 3 vehicles" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
+                  </div>
+                  <Button
+                    onClick={() => {
+                      const items = Object.entries(dailyQtys).map(([id, qty]) => ({ productId: Number(id), quantity: qty })).filter(i => i.quantity > 0);
+                      if (!items.length) return;
+                      logDailyUse.mutate({ items, notes: dailyNotes || undefined });
+                    }}
+                    disabled={logDailyUse.isPending || Object.values(dailyQtys).every(q => q === 0)}
+                    className="w-full h-10 font-bold gap-2 disabled:opacity-40"
+                    style={{ background: branding.brandColor, color: "#000" }}>
+                    {logDailyUse.isPending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                    Submit Daily Log
+                  </Button>
+                </div>
+              )}
+            </div>
 
             {/* Orders list */}
             <div className="space-y-2">

@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 
-type Tab = "checklist" | "techs" | "orders" | "permissions";
+type Tab = "checklist" | "techs" | "orders" | "permissions" | "inventory";
 
 const PERMISSIONS_CONFIG = [
   { key: "view_checklist",        label: "View Checklist" },
@@ -242,9 +242,15 @@ function ShopContent({
   const [orderNotes, setOrderNotes]         = useState("");
   const [editingProduct, setEditingProduct] = useState<any | null>(null); // null = closed, {} = new
   const [prodName, setProdName]             = useState("");
-  const [prodUnit, setProdUnit]             = useState("each");
+  const [prodUnit, setProdUnit]             = useState("Unit");
   const [prodCategory, setProdCategory]     = useState("General");
   const [prodDesc, setProdDesc]             = useState("");
+  const [prodPrice, setProdPrice]           = useState("");
+  // Inventory state
+  const [inventoryProductId, setInventoryProductId] = useState<number | null>(null);
+  const [adjustQty, setAdjustQty]           = useState("");
+  const [adjustNotes, setAdjustNotes]       = useState("");
+  const [showHistory, setShowHistory]       = useState<number | null>(null);
 
   const checklistQuery  = trpc.tech.getChecklistTemplate.useQuery({ shopId });
   const techsQuery      = trpc.tech.getShopTechs.useQuery({ shopId });
@@ -270,20 +276,33 @@ function ShopContent({
     onError: (e) => toast.error(e.message),
   });
   const toggleProduct    = trpc.tech.toggleShopProduct.useMutation({ onSuccess: () => productsQuery.refetch() });
+  const adjustInventory  = trpc.tech.adjustInventory.useMutation({
+    onSuccess: () => { productsQuery.refetch(); inventoryLogsQuery.refetch(); setAdjustQty(""); setAdjustNotes(""); toast.success("Inventory updated."); },
+    onError: (e) => toast.error(e.message),
+  });
+  const inventoryLogsQuery = trpc.tech.getInventoryLogs.useQuery(
+    { shopId, productId: showHistory ?? undefined },
+    { enabled: showHistory !== null }
+  );
 
   const products = (productsQuery.data ?? []) as any[];
 
   function openNewProduct() {
-    setProdName(""); setProdUnit("each"); setProdCategory("General"); setProdDesc("");
+    setProdName(""); setProdUnit("Unit"); setProdCategory("General"); setProdDesc(""); setProdPrice("");
     setEditingProduct({});
   }
   function openEditProduct(p: any) {
-    setProdName(p.name); setProdUnit(p.unit); setProdCategory(p.category); setProdDesc(p.description ?? "");
+    setProdName(p.name); setProdUnit(p.unit); setProdCategory(p.category);
+    setProdDesc(p.description ?? ""); setProdPrice(p.purchasePrice != null ? String(p.purchasePrice) : "");
     setEditingProduct(p);
   }
   function saveProduct() {
     if (!prodName.trim()) return;
-    upsertProduct.mutate({ id: editingProduct?.id, shopId, name: prodName, unit: prodUnit, category: prodCategory, description: prodDesc || undefined });
+    upsertProduct.mutate({
+      id: editingProduct?.id, shopId, name: prodName, unit: prodUnit,
+      category: prodCategory, description: prodDesc || undefined,
+      purchasePrice: prodPrice ? parseFloat(prodPrice) : null,
+    });
   }
 
   function addProductToOrder(p: any) {
@@ -332,6 +351,7 @@ function ShopContent({
     { id: "checklist"   as Tab, label: "Checklist",     icon: <ClipboardCheck size={14} /> },
     { id: "techs"       as Tab, label: `Team (${allTechs.length})`, icon: <Users size={14} /> },
     { id: "orders"      as Tab, label: `Orders${pendingOrders.length ? ` (${pendingOrders.length})` : ""}`, icon: <ShoppingCart size={14} /> },
+    { id: "inventory"   as Tab, label: "Inventory",     icon: <Package size={14} /> },
     { id: "permissions" as Tab, label: "Level Access",  icon: <Wrench size={14} /> },
   ];
 
@@ -618,8 +638,12 @@ function ShopContent({
                     <div>
                       <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block">Unit</Label>
                       <select value={prodUnit} onChange={e => setProdUnit(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 h-8 text-xs text-white focus:outline-none focus:border-gold/50">
-                        {["each","bottle","gallon","oz","bag","box","kit","pair"].map(u => <option key={u} value={u}>{u}</option>)}
+                        {["16 oz Bottle","Gallon","5 Gallon","Unit","Kit"].map(u => <option key={u} value={u}>{u}</option>)}
                       </select>
+                    </div>
+                    <div>
+                      <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block">Purchase Price ($)</Label>
+                      <Input value={prodPrice} onChange={e => setProdPrice(e.target.value)} placeholder="0.00" type="number" min="0" step="0.01" className="bg-white/5 border-white/10 text-white h-8 text-xs" />
                     </div>
                     <div className="col-span-2">
                       <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block">Description (optional)</Label>
@@ -814,6 +838,121 @@ function ShopContent({
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── Inventory ── */}
+      {tab === "inventory" && (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-sm font-bold mb-1">Inventory</h2>
+            <p className="text-xs text-muted-foreground">Track stock levels and restock history for each product.</p>
+          </div>
+
+          {products.length === 0 && (
+            <div className="bg-white/[0.03] border border-white/8 rounded-xl px-5 py-8 text-center text-sm text-muted-foreground">
+              <Package size={24} className="mx-auto mb-2 opacity-30" />
+              No products in catalog yet — add them in the Orders tab.
+            </div>
+          )}
+
+          {products.map((p: any) => {
+            const isOpen = inventoryProductId === p.id;
+            const histOpen = showHistory === p.id;
+            return (
+              <div key={p.id} className="bg-white/[0.03] border border-white/8 rounded-xl overflow-hidden">
+                {/* Product row */}
+                <div className="px-5 py-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold">{p.name}</p>
+                    <p className="text-[10px] text-muted-foreground">{p.category} · {p.unit}{p.purchasePrice ? ` · $${Number(p.purchasePrice).toFixed(2)}/unit` : ""}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold" style={{ color: p.currentStock <= 0 ? "#f87171" : "#a3e635" }}>
+                      {Number(p.currentStock ?? 0).toFixed(1)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">in stock</p>
+                  </div>
+                  <div className="flex items-center gap-2 ml-2">
+                    <button
+                      onClick={() => { setInventoryProductId(isOpen ? null : p.id); setAdjustQty(""); setAdjustNotes(""); }}
+                      className="text-[10px] font-semibold px-2 py-1 rounded border border-white/10 hover:border-gold/40 hover:text-gold transition-colors"
+                    >
+                      {isOpen ? "Cancel" : "Adjust"}
+                    </button>
+                    <button
+                      onClick={() => setShowHistory(histOpen ? null : p.id)}
+                      className="text-[10px] text-muted-foreground hover:text-white transition-colors"
+                    >
+                      History
+                    </button>
+                  </div>
+                </div>
+
+                {/* Adjust stock panel */}
+                {isOpen && (
+                  <div className="border-t border-white/5 px-5 py-3 space-y-3">
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Adjust Inventory</p>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <Label className="text-[10px] text-muted-foreground mb-1 block">Qty (positive = add, negative = remove)</Label>
+                        <Input value={adjustQty} onChange={e => setAdjustQty(e.target.value)}
+                          placeholder="e.g. 5 or -2" type="number" className="bg-white/5 border-white/10 text-white h-8 text-xs" />
+                      </div>
+                      <div className="flex-1">
+                        <Label className="text-[10px] text-muted-foreground mb-1 block">Notes (optional)</Label>
+                        <Input value={adjustNotes} onChange={e => setAdjustNotes(e.target.value)}
+                          placeholder="e.g. Weekly restock" className="bg-white/5 border-white/10 text-white h-8 text-xs" />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => {
+                        const qty = parseFloat(adjustQty);
+                        if (!adjustQty || isNaN(qty) || qty === 0) return;
+                        adjustInventory.mutate({
+                          shopId, productId: p.id,
+                          actionType: qty > 0 ? "restock" : "adjustment",
+                          quantity: qty, notes: adjustNotes || undefined,
+                        });
+                        setInventoryProductId(null);
+                      }} disabled={!adjustQty || adjustInventory.isPending}
+                        className="h-7 px-3 text-[10px] bg-gold text-black font-bold hover:bg-gold/90">
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* History panel */}
+                {histOpen && (
+                  <div className="border-t border-white/5 px-5 py-3">
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">History</p>
+                    {inventoryLogsQuery.isLoading && <p className="text-xs text-muted-foreground">Loading…</p>}
+                    {(inventoryLogsQuery.data ?? []).length === 0 && !inventoryLogsQuery.isLoading && (
+                      <p className="text-xs text-muted-foreground">No history yet.</p>
+                    )}
+                    <div className="space-y-1 max-h-48 overflow-y-auto">
+                      {(inventoryLogsQuery.data ?? []).map((log: any) => (
+                        <div key={log.id} className="flex items-center justify-between text-xs py-1 border-b border-white/5 last:border-0">
+                          <div>
+                            <span className={`font-semibold ${log.quantity > 0 ? "text-green-400" : "text-red-400"}`}>
+                              {log.quantity > 0 ? "+" : ""}{log.quantity}
+                            </span>
+                            <span className="text-muted-foreground ml-2 capitalize">{log.actionType.replace("_", " ")}</span>
+                            {log.notes && <span className="text-muted-foreground ml-1">· {log.notes}</span>}
+                          </div>
+                          <div className="text-right text-muted-foreground text-[10px]">
+                            <p>{log.userName}</p>
+                            <p>{new Date(log.createdAt).toLocaleDateString()} {new Date(log.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </>

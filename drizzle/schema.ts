@@ -511,14 +511,31 @@ export const shopProducts = pgTable("shopProducts", {
   id: serial("id").primaryKey(),
   shopId: integer("shopId").notNull(),
   name: text("name").notNull(),
-  unit: text("unit").notNull().default("each"), // oz, gallon, bottle, each, bag, etc.
-  category: text("category").notNull().default("General"), // Chemical, Equipment, Supplies, etc.
+  unit: text("unit").notNull().default("Unit"),
+  category: text("category").notNull().default("General"),
   description: text("description"),
   active: boolean("active").notNull().default(true),
+  purchasePrice: real("purchasePrice"),       // cost per unit
+  currentStock: real("currentStock").notNull().default(0),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type ShopProduct = typeof shopProducts.$inferSelect;
 export type InsertShopProduct = typeof shopProducts.$inferInsert;
+
+// ─── Inventory Logs ───
+export const inventoryLogs = pgTable("inventoryLogs", {
+  id: serial("id").primaryKey(),
+  shopId: integer("shopId").notNull(),
+  productId: integer("productId").notNull(),
+  userId: integer("userId").notNull(),
+  userName: text("userName").notNull(),
+  actionType: text("actionType").notNull(), // restock | usage | adjustment | daily_use
+  quantity: real("quantity").notNull(),      // positive = added, negative = removed
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type InventoryLog = typeof inventoryLogs.$inferSelect;
+export type InsertInventoryLog = typeof inventoryLogs.$inferInsert;
 
 // ─── Daily Checklist Templates ───
 export const checklistTemplates = pgTable("checklistTemplates", {

@@ -510,10 +510,29 @@ export async function initializeDatabase(): Promise<void> {
         "id" serial PRIMARY KEY,
         "shopId" integer NOT NULL,
         "name" text NOT NULL,
-        "unit" text NOT NULL DEFAULT 'each',
+        "unit" text NOT NULL DEFAULT 'Unit',
         "category" text NOT NULL DEFAULT 'General',
         "description" text,
         "active" boolean NOT NULL DEFAULT true,
+        "purchasePrice" real,
+        "currentStock" real NOT NULL DEFAULT 0,
+        "createdAt" timestamp NOT NULL DEFAULT now()
+      )
+    `;
+    await sql`ALTER TABLE "shopProducts" ADD COLUMN IF NOT EXISTS "purchasePrice" real`;
+    await sql`ALTER TABLE "shopProducts" ADD COLUMN IF NOT EXISTS "currentStock" real NOT NULL DEFAULT 0`;
+
+    // Inventory logs — audit trail for all stock movements
+    await sql`
+      CREATE TABLE IF NOT EXISTS "inventoryLogs" (
+        "id" serial PRIMARY KEY,
+        "shopId" integer NOT NULL,
+        "productId" integer NOT NULL,
+        "userId" integer NOT NULL,
+        "userName" text NOT NULL,
+        "actionType" text NOT NULL,
+        "quantity" real NOT NULL,
+        "notes" text,
         "createdAt" timestamp NOT NULL DEFAULT now()
       )
     `;

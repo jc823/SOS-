@@ -2557,10 +2557,11 @@ Do not use bullet points unless specifically asked. Write in plain paragraphs.`;
         id: z.number().optional(),
         shopId: z.number(),
         name: z.string().min(1),
-        unit: z.string().default("each"),
+        unit: z.string().default("Unit"),
         category: z.string().default("General"),
         description: z.string().optional(),
         active: z.boolean().default(true),
+        purchasePrice: z.number().nullable().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role === "shop_manager" && ctx.user.shopId !== input.shopId) throw new Error("Access denied");
@@ -2581,6 +2582,60 @@ Do not use bullet points unless specifically asked. Write in plain paragraphs.`;
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role === "shop_manager" && ctx.user.shopId !== input.shopId) throw new Error("Access denied");
         await db.toggleShopProductActive(input.id, input.active);
+        return { success: true };
+      }),
+
+    getInventoryLogs: shopManagerProcedure
+      .input(z.object({ shopId: z.number(), productId: z.number().optional() }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role === "shop_manager" && ctx.user.shopId !== input.shopId) throw new Error("Access denied");
+        return db.getInventoryLogs(input.shopId, input.productId);
+      }),
+
+    adjustInventory: shopManagerProcedure
+      .input(z.object({
+        shopId: z.number(),
+        productId: z.number(),
+        actionType: z.enum(["restock", "adjustment"]),
+        quantity: z.number(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role === "shop_manager" && ctx.user.shopId !== input.shopId) throw new Error("Access denied");
+        await db.logInventoryAction({
+          shopId: input.shopId,
+          productId: input.productId,
+          userId: ctx.user.id,
+          userName: ctx.user.name ?? ctx.user.username ?? "Unknown",
+          actionType: input.actionType,
+          quantity: input.quantity,
+          notes: input.notes ?? null,
+        });
+        return { success: true };
+      }),
+
+    logDailyUse: protectedProcedure
+      .input(z.object({
+        items: z.array(z.object({
+          productId: z.number(),
+          quantity: z.number(),
+        })),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const shopId = (ctx.user as any).shopId;
+        if (!shopId) throw new Error("No shop assigned");
+        for (const item of input.items) {
+          await db.logInventoryAction({
+            shopId,
+            productId: item.productId,
+            userId: ctx.user.id,
+            userName: ctx.user.name ?? ctx.user.username ?? "Unknown",
+            actionType: "daily_use",
+            quantity: -Math.abs(item.quantity),
+            notes: input.notes ?? null,
+          });
+        }
         return { success: true };
       }),
   }),

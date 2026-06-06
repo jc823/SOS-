@@ -27,6 +27,7 @@ import {
   checklistTemplates,
   levelPermissions,
   shopProducts, InsertShopProduct,
+  inventoryLogs, InsertInventoryLog,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1466,4 +1467,34 @@ export async function toggleShopProductActive(id: number, active: boolean): Prom
   const db = await getDb();
   if (!db) return;
   await db.update(shopProducts).set({ active }).where(eq(shopProducts.id, id));
+}
+
+// ─── Inventory ────────────────────────────────────────────────────────────────
+
+export async function logInventoryAction(data: InsertInventoryLog): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(inventoryLogs).values(data);
+  // update currentStock on the product
+  await db.execute(
+    sql`UPDATE "shopProducts" SET "currentStock" = COALESCE("currentStock", 0) + ${data.quantity} WHERE "id" = ${data.productId}`
+  );
+}
+
+export async function getInventoryLogs(shopId: number, productId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = productId
+    ? and(eq(inventoryLogs.shopId, shopId), eq(inventoryLogs.productId, productId))
+    : eq(inventoryLogs.shopId, shopId);
+  return db.select().from(inventoryLogs)
+    .where(conditions)
+    .orderBy(desc(inventoryLogs.createdAt))
+    .limit(200);
+}
+
+export async function setProductStock(productId: number, stock: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(shopProducts).set({ currentStock: stock }).where(eq(shopProducts.id, productId));
 }
