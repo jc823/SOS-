@@ -50,10 +50,13 @@ export default function TechPortal() {
 
   // Supply order state
   const [showOrderForm, setShowOrderForm] = useState(false);
-  const [orderItems, setOrderItems] = useState([{ name: "", qty: "1", unit: "units", notes: "" }]);
   const [orderNotes, setOrderNotes] = useState("");
-  const [orderSubmitting, setOrderSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
+  // catalog picker: { productId -> qty }
+  const [cartQtys, setCartQtys] = useState<Record<number, number>>({});
+  // custom items fallback
+  const [customItems, setCustomItems] = useState<Array<{ name: string; qty: string; unit: string }>>([]);
+  const [showCustom, setShowCustom] = useState(false);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'shop_manager';
   const shopId = (user as any)?.shopId ?? null;
@@ -72,13 +75,17 @@ export default function TechPortal() {
 
   // Techs see their own orders; admins see all shop orders
   const myOrdersQuery   = trpc.tech.getMySupplyOrders.useQuery(undefined, { enabled: !loading && !!user && !isAdmin });
-  const shopOrdersQuery = trpc.tech.getShopSupplyOrders.useQuery(undefined, { enabled: !loading && !!user && isAdmin });
+  const shopOrdersQuery = trpc.tech.getShopSupplyOrders.useQuery({}, { enabled: !loading && !!user && isAdmin });
   const supplyOrdersQuery = isAdmin ? shopOrdersQuery : myOrdersQuery;
+
+  const catalogQuery = trpc.tech.getCatalog.useQuery(undefined, { enabled: !loading && !!user });
 
   const createOrder = trpc.tech.createSupplyOrder.useMutation({
     onSuccess: () => {
       setOrderSuccess(true);
-      setOrderItems([{ name: "", qty: "1", unit: "units", notes: "" }]);
+      setCartQtys({});
+      setCustomItems([]);
+      setShowCustom(false);
       setOrderNotes("");
       setShowOrderForm(false);
       supplyOrdersQuery.refetch();
@@ -108,23 +115,42 @@ export default function TechPortal() {
     });
   }
 
-  function addOrderItem() {
-    setOrderItems(prev => [...prev, { name: "", qty: "1", unit: "units", notes: "" }]);
+  function setCartQty(id: number, delta: number) {
+    setCartQtys(prev => {
+      const next = { ...prev };
+      const newQty = (next[id] ?? 0) + delta;
+      if (newQty <= 0) delete next[id];
+      else next[id] = newQty;
+      return next;
+    });
   }
 
-  function removeOrderItem(i: number) {
-    setOrderItems(prev => prev.filter((_, idx) => idx !== i));
+  function addCustomItem() {
+    setCustomItems(prev => [...prev, { name: "", qty: "1", unit: "each" }]);
   }
 
-  function updateOrderItem(i: number, field: string, value: string) {
-    setOrderItems(prev => prev.map((item, idx) => idx === i ? { ...item, [field]: value } : item));
+  function updateCustomItem(i: number, field: string, value: string) {
+    setCustomItems(prev => prev.map((item, idx) => idx === i ? { ...item, [field]: value } : item));
+  }
+
+  function removeCustomItem(i: number) {
+    setCustomItems(prev => prev.filter((_, idx) => idx !== i));
   }
 
   function submitOrder() {
-    const validItems = orderItems.filter(i => i.name.trim());
-    if (!validItems.length) return;
-    createOrder.mutate({ items: validItems, notes: orderNotes });
+    const catalog = catalogQuery.data ?? [];
+    const catalogItems = Object.entries(cartQtys).map(([idStr, qty]) => {
+      const product = catalog.find((p: any) => p.id === Number(idStr));
+      return product ? { name: product.name, qty: String(qty), unit: product.unit ?? "each" } : null;
+    }).filter(Boolean) as { name: string; qty: string; unit: string }[];
+
+    const validCustom = customItems.filter(i => i.name.trim());
+    const allItems = [...catalogItems, ...validCustom];
+    if (!allItems.length) return;
+    createOrder.mutate({ items: allItems, notes: orderNotes });
   }
+
+  const cartCount = Object.values(cartQtys).reduce((a, b) => a + b, 0) + customItems.filter(i => i.name.trim()).length;
 
   const statusColors: Record<string, string> = {
     pending: "text-amber-400 bg-amber-400/10",
@@ -307,48 +333,118 @@ export default function TechPortal() {
               className="w-full h-11 font-bold gap-2"
               style={{ background: branding.brandColor, color: "#000" }}
             >
-              {showOrderForm ? <><ChevronUp size={16} /> Cancel</> : <><Plus size={16} /> New Supply Order</>}
+              {showOrderForm
+                ? <><ChevronUp size={16} /> Cancel</>
+                : <><Plus size={16} /> New Supply Order</>}
             </Button>
 
-            {/* Order form */}
+            {/* Order form — catalog picker */}
             {showOrderForm && (
-              <div className="bg-white/[0.03] border border-white/8 rounded-xl p-5 space-y-4">
+              <div className="bg-white/[0.03] border border-white/8 rounded-xl p-5 space-y-5">
                 <h3 className="text-sm font-bold">New Supply Request</h3>
-                {orderItems.map((item, i) => (
-                  <div key={i} className="grid grid-cols-12 gap-2 items-start">
-                    <div className="col-span-5">
-                      <Input value={item.name} onChange={e => updateOrderItem(i, "name", e.target.value)}
-                        placeholder="Item name" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
-                    </div>
-                    <div className="col-span-2">
-                      <Input value={item.qty} onChange={e => updateOrderItem(i, "qty", e.target.value)}
-                        placeholder="Qty" type="number" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
-                    </div>
-                    <div className="col-span-3">
-                      <Input value={item.unit} onChange={e => updateOrderItem(i, "unit", e.target.value)}
-                        placeholder="Unit" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
-                    </div>
-                    <div className="col-span-2 flex justify-end pt-1">
-                      <button onClick={() => removeOrderItem(i)} className="text-muted-foreground hover:text-red-400 transition-colors">
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+
+                {catalogQuery.isLoading && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 size={14} className="animate-spin" /> Loading catalog…
                   </div>
-                ))}
-                <button onClick={addOrderItem} className="text-xs font-medium flex items-center gap-1 hover:text-white transition-colors"
-                  style={{ color: branding.brandColor }}>
-                  <Plus size={12} /> Add another item
-                </button>
+                )}
+
+                {!catalogQuery.isLoading && (catalogQuery.data ?? []).length === 0 && (
+                  <p className="text-xs text-muted-foreground">No catalog items set up yet. Use the custom item section below.</p>
+                )}
+
+                {/* Catalog chips grouped by category */}
+                {(() => {
+                  const catalog = catalogQuery.data ?? [];
+                  const cats = [...new Set(catalog.map((p: any) => p.category ?? "General"))];
+                  return cats.map(cat => (
+                    <div key={cat} className="space-y-2">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{cat}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {catalog.filter((p: any) => (p.category ?? "General") === cat).map((product: any) => {
+                          const qty = cartQtys[product.id] ?? 0;
+                          const selected = qty > 0;
+                          return (
+                            <div key={product.id}
+                              className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
+                                selected
+                                  ? "border-transparent text-black"
+                                  : "border-white/10 text-white/70 hover:border-white/30 hover:text-white"
+                              }`}
+                              style={selected ? { background: branding.brandColor } : {}}>
+                              <button onClick={() => setCartQty(product.id, -1)} className={`${selected ? "text-black/60 hover:text-black" : "hidden"}`}>
+                                −
+                              </button>
+                              <button
+                                onClick={() => setCartQty(product.id, 1)}
+                                className="flex items-center gap-1"
+                              >
+                                {!selected && <Plus size={10} />}
+                                {product.name}
+                                {selected && <span className="font-bold ml-1">×{qty}</span>}
+                              </button>
+                              {selected && (
+                                <button onClick={() => setCartQty(product.id, -qty)} className="text-black/60 hover:text-black ml-0.5">
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ));
+                })()}
+
+                {/* Custom items */}
+                <div className="space-y-2">
+                  <button
+                    onClick={() => { setShowCustom(v => !v); if (!showCustom && customItems.length === 0) addCustomItem(); }}
+                    className="text-xs font-medium flex items-center gap-1 transition-colors hover:text-white"
+                    style={{ color: branding.brandColor }}
+                  >
+                    <Plus size={12} /> {showCustom ? "Hide custom items" : "Add custom item"}
+                  </button>
+                  {showCustom && customItems.map((item, i) => (
+                    <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                      <div className="col-span-5">
+                        <Input value={item.name} onChange={e => updateCustomItem(i, "name", e.target.value)}
+                          placeholder="Item name" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
+                      </div>
+                      <div className="col-span-2">
+                        <Input value={item.qty} onChange={e => updateCustomItem(i, "qty", e.target.value)}
+                          placeholder="Qty" type="number" min="1" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
+                      </div>
+                      <div className="col-span-3">
+                        <Input value={item.unit} onChange={e => updateCustomItem(i, "unit", e.target.value)}
+                          placeholder="Unit" className="bg-white/5 border-white/10 text-white h-9 text-sm" />
+                      </div>
+                      <div className="col-span-2 flex justify-end">
+                        <button onClick={() => removeCustomItem(i)} className="text-muted-foreground hover:text-red-400 transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {showCustom && (
+                    <button onClick={addCustomItem} className="text-xs text-muted-foreground hover:text-white flex items-center gap-1 transition-colors">
+                      <Plus size={10} /> Add another
+                    </button>
+                  )}
+                </div>
+
+                {/* Notes */}
                 <div>
                   <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 block">Notes (optional)</Label>
                   <Input value={orderNotes} onChange={e => setOrderNotes(e.target.value)}
                     placeholder="Any additional context..." className="bg-white/5 border-white/10 text-white h-9 text-sm" />
                 </div>
-                <Button onClick={submitOrder} disabled={createOrder.isPending || !orderItems.some(i => i.name.trim())}
+
+                <Button onClick={submitOrder} disabled={createOrder.isPending || cartCount === 0}
                   className="w-full h-10 font-bold gap-2 disabled:opacity-40"
                   style={{ background: branding.brandColor, color: "#000" }}>
                   {createOrder.isPending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                  Submit Order
+                  Submit Order {cartCount > 0 && `(${cartCount} item${cartCount !== 1 ? "s" : ""})`}
                 </Button>
               </div>
             )}

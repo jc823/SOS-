@@ -2497,6 +2497,13 @@ Do not use bullet points unless specifically asked. Write in plain paragraphs.`;
       return db.getShopsWithLatestAssessment();
     }),
 
+    getCatalog: protectedProcedure.query(async ({ ctx }) => {
+      const shopId = (ctx.user as any).shopId;
+      if (!shopId) return [];
+      const products = await db.getAllShopProducts(shopId);
+      return products.filter((p: any) => p.active !== false);
+    }),
+
     getMySupplyOrders: protectedProcedure.query(async ({ ctx }) => {
       return db.getSupplyOrdersByUser(ctx.user.id);
     }),
