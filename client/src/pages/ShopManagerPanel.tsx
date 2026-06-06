@@ -594,7 +594,7 @@ function ShopContent({
             <div className="bg-white/[0.03] border border-gold/20 rounded-xl overflow-hidden">
               <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-bold">Product Catalog — per shop</h3>
+                  <h3 className="text-sm font-bold">Product Catalog</h3>
                   <p className="text-[11px] text-muted-foreground mt-0.5">Add chemicals, equipment, and supplies. Techs pick from this list when ordering.</p>
                 </div>
                 <Button size="sm" onClick={openNewProduct} className="h-7 px-3 text-[10px] bg-gold text-black font-bold hover:bg-gold/90 gap-1">
