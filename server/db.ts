@@ -26,6 +26,7 @@ import {
   supplyOrders,
   checklistTemplates,
   levelPermissions,
+  shopProducts, InsertShopProduct,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1423,4 +1424,46 @@ export async function saveChecklistTemplate(shopId: number, name: string, items:
   await db.update(checklistTemplates).set({ isActive: false }).where(eq(checklistTemplates.shopId, shopId));
   // Insert new active template
   await db.insert(checklistTemplates).values({ shopId, name, items, isActive: true, createdById });
+}
+
+// ─── Shop Product Catalog ─────────────────────────────────────────────────────
+
+export async function getShopProducts(shopId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(shopProducts)
+    .where(and(eq(shopProducts.shopId, shopId), eq(shopProducts.active, true)))
+    .orderBy(shopProducts.category, shopProducts.name);
+}
+
+export async function getAllShopProducts(shopId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(shopProducts)
+    .where(eq(shopProducts.shopId, shopId))
+    .orderBy(shopProducts.category, shopProducts.name);
+}
+
+export async function upsertShopProduct(data: InsertShopProduct & { id?: number }): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  if (data.id) {
+    const { id, ...rest } = data;
+    await db.update(shopProducts).set(rest).where(eq(shopProducts.id, id));
+    return id;
+  }
+  const result = await db.insert(shopProducts).values(data).returning({ id: shopProducts.id });
+  return result[0].id;
+}
+
+export async function deleteShopProduct(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(shopProducts).where(eq(shopProducts.id, id));
+}
+
+export async function toggleShopProductActive(id: number, active: boolean): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(shopProducts).set({ active }).where(eq(shopProducts.id, id));
 }

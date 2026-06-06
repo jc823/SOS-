@@ -504,6 +504,20 @@ export async function initializeDatabase(): Promise<void> {
     await sql`ALTER TABLE "shops" ADD COLUMN IF NOT EXISTS "contactPhone" text`;
     await sql`ALTER TABLE "shops" ADD COLUMN IF NOT EXISTS "notes" text`;
 
+    // Shop product catalog
+    await sql`
+      CREATE TABLE IF NOT EXISTS "shopProducts" (
+        "id" serial PRIMARY KEY,
+        "shopId" integer NOT NULL,
+        "name" text NOT NULL,
+        "unit" text NOT NULL DEFAULT 'each',
+        "category" text NOT NULL DEFAULT 'General',
+        "description" text,
+        "active" boolean NOT NULL DEFAULT true,
+        "createdAt" timestamp NOT NULL DEFAULT now()
+      )
+    `;
+
     // assessments columns added over time
     await sql`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "assessmentType" text NOT NULL DEFAULT 'assessment'`;
     await sql`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "customTarget" integer`;

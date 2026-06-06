@@ -4,12 +4,14 @@ import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 import {
   Store, LogOut, Loader2, ChevronLeft, ClipboardCheck, ShoppingCart,
   Users, Wrench, Plus, Trash2, ToggleLeft, ToggleRight,
   Clock, Package, ThumbsUp, ThumbsDown, ChevronDown, ChevronRight,
-  SlidersHorizontal,
+  SlidersHorizontal, FlaskConical, PenLine, X,
 } from "lucide-react";
+import { Label } from "@/components/ui/label";
 
 type Tab = "checklist" | "techs" | "orders" | "permissions";
 
@@ -227,22 +229,77 @@ function ShopContent({
   setLocalPerms: (v: any) => void;
 }) {
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
+  const isAdmin = user?.role === "admin" || user?.role === "super_admin" || user?.role === "shop_manager";
 
   // Per-user override expand/edit state
   const [expandedTech, setExpandedTech] = useState<number | null>(null);
   const [techOverrides, setTechOverrides] = useState<Record<number, Record<string, boolean>>>({});
 
-  const checklistQuery = trpc.tech.getChecklistTemplate.useQuery({ shopId });
-  const techsQuery     = trpc.tech.getShopTechs.useQuery({ shopId });
-  const ordersQuery    = trpc.tech.getShopSupplyOrders.useQuery();
-  const permQuery      = trpc.admin.getLevelPermissions.useQuery({ shopId });
+  // Order / catalog state
+  const [showNewOrder, setShowNewOrder]     = useState(false);
+  const [showCatalog, setShowCatalog]       = useState(false);
+  const [orderItems, setOrderItems]         = useState<Array<{ productId?: number; name: string; qty: string; unit: string; notes: string }>>([]);
+  const [orderNotes, setOrderNotes]         = useState("");
+  const [editingProduct, setEditingProduct] = useState<any | null>(null); // null = closed, {} = new
+  const [prodName, setProdName]             = useState("");
+  const [prodUnit, setProdUnit]             = useState("each");
+  const [prodCategory, setProdCategory]     = useState("General");
+  const [prodDesc, setProdDesc]             = useState("");
+
+  const checklistQuery  = trpc.tech.getChecklistTemplate.useQuery({ shopId });
+  const techsQuery      = trpc.tech.getShopTechs.useQuery({ shopId });
+  const ordersQuery     = trpc.tech.getShopSupplyOrders.useQuery();
+  const permQuery       = trpc.admin.getLevelPermissions.useQuery({ shopId });
+  const productsQuery   = trpc.tech.getShopProducts.useQuery({ shopId });
 
   const saveChecklist    = trpc.tech.saveChecklistTemplate.useMutation({
     onSuccess: () => { checklistQuery.refetch(); setEditingChecklist(false); },
   });
   const updateStatus     = trpc.tech.updateOrderStatus.useMutation({ onSuccess: () => ordersQuery.refetch() });
   const upsertPerms      = trpc.admin.upsertLevelPermissions.useMutation({ onSuccess: () => permQuery.refetch() });
+  const createOrder      = trpc.tech.createSupplyOrder.useMutation({
+    onSuccess: () => { ordersQuery.refetch(); setShowNewOrder(false); setOrderItems([]); setOrderNotes(""); toast.success("Order submitted!"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const upsertProduct    = trpc.tech.upsertShopProduct.useMutation({
+    onSuccess: () => { productsQuery.refetch(); setEditingProduct(null); toast.success("Product saved."); },
+    onError: (e) => toast.error(e.message),
+  });
+  const deleteProduct    = trpc.tech.deleteShopProduct.useMutation({
+    onSuccess: () => { productsQuery.refetch(); toast.success("Product removed."); },
+    onError: (e) => toast.error(e.message),
+  });
+  const toggleProduct    = trpc.tech.toggleShopProduct.useMutation({ onSuccess: () => productsQuery.refetch() });
+
+  const products = (productsQuery.data ?? []) as any[];
+
+  function openNewProduct() {
+    setProdName(""); setProdUnit("each"); setProdCategory("General"); setProdDesc("");
+    setEditingProduct({});
+  }
+  function openEditProduct(p: any) {
+    setProdName(p.name); setProdUnit(p.unit); setProdCategory(p.category); setProdDesc(p.description ?? "");
+    setEditingProduct(p);
+  }
+  function saveProduct() {
+    if (!prodName.trim()) return;
+    upsertProduct.mutate({ id: editingProduct?.id, shopId, name: prodName, unit: prodUnit, category: prodCategory, description: prodDesc || undefined });
+  }
+
+  function addProductToOrder(p: any) {
+    setOrderItems(prev => [...prev, { productId: p.id, name: p.name, qty: "1", unit: p.unit, notes: "" }]);
+  }
+  function addCustomItem() {
+    setOrderItems(prev => [...prev, { name: "", qty: "1", unit: "each", notes: "" }]);
+  }
+  function removeOrderItem(i: number) { setOrderItems(prev => prev.filter((_, idx) => idx !== i)); }
+  function updateOrderItem(i: number, field: string, val: string) {
+    setOrderItems(prev => prev.map((item, idx) => idx === i ? { ...item, [field]: val } : item));
+  }
+  function submitOrder() {
+    if (orderItems.length === 0) { toast.error("Add at least one item"); return; }
+    createOrder.mutate({ shopId, items: orderItems.map(({ productId: _, ...rest }) => rest), notes: orderNotes || undefined });
+  }
   const updateTechLevel  = trpc.admin.updateUserTechLevel.useMutation({ onSuccess: () => techsQuery.refetch() });
   const updateTechPerms  = trpc.admin.updateUserTechPermissions.useMutation({ onSuccess: () => techsQuery.refetch() });
 
@@ -521,6 +578,144 @@ function ShopContent({
       {/* ── Orders ── */}
       {tab === "orders" && (
         <div className="space-y-4">
+
+          {/* Action bar */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button onClick={() => setShowNewOrder(v => !v)} className="bg-gold text-black font-bold hover:bg-gold/90 h-9 px-4 text-xs gap-1.5">
+              <Plus size={13} /> Add Order
+            </Button>
+            <Button onClick={() => setShowCatalog(v => !v)} variant="outline" className="h-9 px-4 text-xs border-white/10 gap-1.5">
+              <FlaskConical size={13} /> Manage Catalog ({products.length})
+            </Button>
+          </div>
+
+          {/* ── Product Catalog Manager ── */}
+          {showCatalog && (
+            <div className="bg-white/[0.03] border border-gold/20 rounded-xl overflow-hidden">
+              <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold">Product Catalog — per shop</h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Add chemicals, equipment, and supplies. Techs pick from this list when ordering.</p>
+                </div>
+                <Button size="sm" onClick={openNewProduct} className="h-7 px-3 text-[10px] bg-gold text-black font-bold hover:bg-gold/90 gap-1">
+                  <Plus size={11} /> Add Product
+                </Button>
+              </div>
+
+              {/* Add/Edit product form */}
+              {editingProduct !== null && (
+                <div className="px-5 py-4 border-b border-white/5 bg-white/[0.02] space-y-3">
+                  <p className="text-xs font-bold">{editingProduct?.id ? "Edit Product" : "New Product"}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="col-span-2">
+                      <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block">Name *</Label>
+                      <Input value={prodName} onChange={e => setProdName(e.target.value)} placeholder="e.g. Iron Remover 16oz" className="bg-white/5 border-white/10 text-white h-8 text-xs" />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block">Category</Label>
+                      <Input value={prodCategory} onChange={e => setProdCategory(e.target.value)} placeholder="Chemical / Equipment / Supplies" className="bg-white/5 border-white/10 text-white h-8 text-xs" />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block">Unit</Label>
+                      <select value={prodUnit} onChange={e => setProdUnit(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 h-8 text-xs text-white focus:outline-none focus:border-gold/50">
+                        {["each","bottle","gallon","oz","bag","box","kit","pair"].map(u => <option key={u} value={u}>{u}</option>)}
+                      </select>
+                    </div>
+                    <div className="col-span-2">
+                      <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block">Description (optional)</Label>
+                      <Input value={prodDesc} onChange={e => setProdDesc(e.target.value)} placeholder="Short note…" className="bg-white/5 border-white/10 text-white h-8 text-xs" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={saveProduct} disabled={!prodName.trim() || upsertProduct.isPending} className="h-7 px-3 text-[10px] bg-gold text-black font-bold hover:bg-gold/90">
+                      {upsertProduct.isPending ? <Loader2 size={10} className="animate-spin" /> : "Save"}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setEditingProduct(null)} className="h-7 text-[10px] border-white/10">Cancel</Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Product list */}
+              {products.length === 0 ? (
+                <p className="px-5 py-8 text-center text-xs text-muted-foreground">No products yet — add chemicals, equipment, and supplies for this shop.</p>
+              ) : (
+                <div className="divide-y divide-white/5">
+                  {products.map((p: any) => (
+                    <div key={p.id} className="px-5 py-2.5 flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <span className={`text-xs font-medium ${!p.active ? "line-through text-muted-foreground" : ""}`}>{p.name}</span>
+                        <span className="text-[10px] text-muted-foreground ml-2">{p.category} · {p.unit}</span>
+                        {p.description && <p className="text-[10px] text-muted-foreground">{p.description}</p>}
+                      </div>
+                      <button onClick={() => toggleProduct.mutate({ id: p.id, shopId, active: !p.active })}
+                        className={`text-[10px] font-semibold ${p.active ? "text-green-400" : "text-muted-foreground"}`}>
+                        {p.active ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                      </button>
+                      <button onClick={() => openEditProduct(p)} className="text-muted-foreground hover:text-white transition-colors"><PenLine size={13} /></button>
+                      <button onClick={() => { if (confirm(`Remove "${p.name}"?`)) deleteProduct.mutate({ id: p.id, shopId }); }}
+                        className="text-muted-foreground hover:text-red-400 transition-colors"><Trash2 size={13} /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── New Order Form ── */}
+          {showNewOrder && (
+            <div className="bg-white/[0.03] border border-gold/20 rounded-xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold">New Order</h3>
+                <button onClick={() => { setShowNewOrder(false); setOrderItems([]); setOrderNotes(""); }} className="text-muted-foreground hover:text-white"><X size={14} /></button>
+              </div>
+
+              {/* Pick from catalog */}
+              {products.filter((p: any) => p.active).length > 0 && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Add from catalog</p>
+                  <div className="flex flex-wrap gap-2">
+                    {products.filter((p: any) => p.active).map((p: any) => (
+                      <button key={p.id} onClick={() => addProductToOrder(p)}
+                        className="flex items-center gap-1.5 text-[11px] bg-white/5 border border-white/10 hover:border-gold/40 hover:bg-white/10 rounded-lg px-3 py-1.5 transition-colors">
+                        <Plus size={10} className="text-gold" /> {p.name} <span className="text-muted-foreground">({p.unit})</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Order items */}
+              {orderItems.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Order items</p>
+                  {orderItems.map((item, i) => (
+                    <div key={i} className="flex gap-2 items-center">
+                      <Input value={item.name} onChange={e => updateOrderItem(i, "name", e.target.value)} placeholder="Item name" className="bg-white/5 border-white/10 text-white h-8 text-xs flex-1" />
+                      <Input value={item.qty} onChange={e => updateOrderItem(i, "qty", e.target.value)} placeholder="Qty" className="bg-white/5 border-white/10 text-white h-8 text-xs w-14" />
+                      <Input value={item.unit} onChange={e => updateOrderItem(i, "unit", e.target.value)} placeholder="Unit" className="bg-white/5 border-white/10 text-white h-8 text-xs w-20" />
+                      <Input value={item.notes} onChange={e => updateOrderItem(i, "notes", e.target.value)} placeholder="Notes" className="bg-white/5 border-white/10 text-white h-8 text-xs flex-1" />
+                      <button onClick={() => removeOrderItem(i)} className="text-red-400/60 hover:text-red-400 shrink-0"><X size={14} /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button onClick={addCustomItem} className="text-[11px] text-gold/70 hover:text-gold flex items-center gap-1 transition-colors">
+                <Plus size={11} /> Add custom item
+              </button>
+
+              <div>
+                <Label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block">Order notes (optional)</Label>
+                <Input value={orderNotes} onChange={e => setOrderNotes(e.target.value)} placeholder="Any special instructions…" className="bg-white/5 border-white/10 text-white h-8 text-xs" />
+              </div>
+
+              <Button onClick={submitOrder} disabled={orderItems.length === 0 || createOrder.isPending} className="bg-gold text-black font-bold hover:bg-gold/90 h-9 px-5 text-xs">
+                {createOrder.isPending ? <><Loader2 size={12} className="animate-spin mr-1.5" /> Submitting…</> : "Submit Order"}
+              </Button>
+            </div>
+          )}
+
+          {/* Pending approvals */}
           <div className="bg-white/[0.03] border border-white/8 rounded-xl overflow-hidden">
             <div className="px-5 py-4 border-b border-white/5 flex items-center gap-2">
               <Clock size={13} className="text-amber-400" />
@@ -549,13 +744,11 @@ function ShopContent({
                         {order.notes && <p className="text-[11px] text-muted-foreground pl-5 mt-1">Note: {order.notes}</p>}
                       </div>
                       <div className="flex gap-3 shrink-0">
-                        <button onClick={() => updateStatus.mutate({ orderId: order.id, status: "approved" })}
-                          disabled={updateStatus.isPending}
+                        <button onClick={() => updateStatus.mutate({ orderId: order.id, status: "approved" })} disabled={updateStatus.isPending}
                           className="flex items-center gap-1 text-xs font-semibold text-green-400 hover:text-green-300 disabled:opacity-50 transition-colors">
                           <ThumbsUp size={14} /> Approve
                         </button>
-                        <button onClick={() => updateStatus.mutate({ orderId: order.id, status: "rejected" })}
-                          disabled={updateStatus.isPending}
+                        <button onClick={() => updateStatus.mutate({ orderId: order.id, status: "rejected" })} disabled={updateStatus.isPending}
                           className="flex items-center gap-1 text-xs font-semibold text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors">
                           <ThumbsDown size={14} /> Reject
                         </button>
@@ -582,9 +775,7 @@ function ShopContent({
                         <p className="text-[10px] text-muted-foreground">{new Date(order.createdAt).toLocaleDateString()} · {(order.items as any[]).length} item(s)</p>
                       </div>
                     </div>
-                    <span className={`text-[10px] border px-2 py-0.5 rounded font-medium ${STATUS_STYLES[order.status] ?? ""}`}>
-                      {order.status}
-                    </span>
+                    <span className={`text-[10px] border px-2 py-0.5 rounded font-medium ${STATUS_STYLES[order.status] ?? ""}`}>{order.status}</span>
                   </div>
                 ))}
               </div>
