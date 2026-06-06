@@ -506,6 +506,20 @@ export const supplyOrders = pgTable("supplyOrders", {
 export type SupplyOrder = typeof supplyOrders.$inferSelect;
 export type InsertSupplyOrder = typeof supplyOrders.$inferInsert;
 
+// ─── Shop Product Catalog ───
+export const shopProducts = pgTable("shopProducts", {
+  id: serial("id").primaryKey(),
+  shopId: integer("shopId").notNull(),
+  name: text("name").notNull(),
+  unit: text("unit").notNull().default("each"), // oz, gallon, bottle, each, bag, etc.
+  category: text("category").notNull().default("General"), // Chemical, Equipment, Supplies, etc.
+  description: text("description"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ShopProduct = typeof shopProducts.$inferSelect;
+export type InsertShopProduct = typeof shopProducts.$inferInsert;
+
 // ─── Daily Checklist Templates ───
 export const checklistTemplates = pgTable("checklistTemplates", {
   id: serial("id").primaryKey(),

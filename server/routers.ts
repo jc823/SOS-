@@ -2503,13 +2503,16 @@ Do not use bullet points unless specifically asked. Write in plain paragraphs.`;
 
     createSupplyOrder: protectedProcedure
       .input(z.object({
+        shopId: z.number().optional(), // admins can specify shopId; techs use their assigned shop
         items: z.array(z.object({ name: z.string(), qty: z.string(), unit: z.string(), notes: z.string().optional() })),
         notes: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (!ctx.user.shopId) throw new Error("No shop assigned to your account");
+        const isAdmin = ctx.user.role === "admin" || ctx.user.role === "super_admin" || ctx.user.role === "shop_manager";
+        const shopId = isAdmin && input.shopId ? input.shopId : ctx.user.shopId;
+        if (!shopId) throw new Error("No shop assigned to your account");
         const id = await db.createSupplyOrder({
-          shopId: ctx.user.shopId,
+          shopId,
           requestedById: ctx.user.id,
           items: input.items,
           notes: input.notes ?? null,
@@ -2527,6 +2530,46 @@ Do not use bullet points unless specifically asked. Write in plain paragraphs.`;
       .input(z.object({ orderId: z.number(), status: z.enum(["pending","approved","ordered","delivered","rejected"]) }))
       .mutation(async ({ ctx, input }) => {
         await db.updateSupplyOrderStatus(input.orderId, input.status, ctx.user.id);
+        return { success: true };
+      }),
+
+    // ─── Shop Product Catalog ───────────────────────────────────────────────
+    getShopProducts: shopManagerProcedure
+      .input(z.object({ shopId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role === "shop_manager" && ctx.user.shopId !== input.shopId) throw new Error("Access denied");
+        return db.getAllShopProducts(input.shopId);
+      }),
+
+    upsertShopProduct: shopManagerProcedure
+      .input(z.object({
+        id: z.number().optional(),
+        shopId: z.number(),
+        name: z.string().min(1),
+        unit: z.string().default("each"),
+        category: z.string().default("General"),
+        description: z.string().optional(),
+        active: z.boolean().default(true),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role === "shop_manager" && ctx.user.shopId !== input.shopId) throw new Error("Access denied");
+        const id = await db.upsertShopProduct(input);
+        return { id };
+      }),
+
+    deleteShopProduct: shopManagerProcedure
+      .input(z.object({ id: z.number(), shopId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role === "shop_manager" && ctx.user.shopId !== input.shopId) throw new Error("Access denied");
+        await db.deleteShopProduct(input.id);
+        return { success: true };
+      }),
+
+    toggleShopProduct: shopManagerProcedure
+      .input(z.object({ id: z.number(), shopId: z.number(), active: z.boolean() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role === "shop_manager" && ctx.user.shopId !== input.shopId) throw new Error("Access denied");
+        await db.toggleShopProductActive(input.id, input.active);
         return { success: true };
       }),
   }),
