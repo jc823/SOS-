@@ -1,4 +1,5 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
+import { sendWelcomeEmail, sendMagicLinkEmail } from "./email";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, staffProcedure, adminProcedure, superAdminProcedure, proProcedure, shopManagerProcedure, router } from "./_core/trpc";
@@ -14,6 +15,16 @@ import { syncFromSalesArena, getSalesArenaLiveData } from "./sales-arena-sync";
 import { runPredictionEngine } from "./prediction-engine";
 import { analyzePatterns } from "./learning-engine";
 import { stripe, PRICES, PLAN_DETAILS, canAccessPro } from "./stripe";
+
+// Generates a human-readable password like "Blue-River-4927"
+function generateReadablePassword(): string {
+  const adjectives = ["Blue","Red","Gold","Bold","Swift","Clean","Sharp","Prime","Elite","Apex"];
+  const nouns = ["River","Eagle","Titan","Forge","Ridge","Crest","Stone","Blade","Spark","Drift"];
+  const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+  const noun = nouns[Math.floor(Math.random() * nouns.length)];
+  const num = Math.floor(1000 + Math.random() * 9000);
+  return `${adj}-${noun}-${num}`;
+}
 
 export const appRouter = router({
   system: systemRouter,
@@ -149,11 +160,13 @@ export const appRouter = router({
           let username = baseUsername;
           let attempt = 0;
           while (await db.getUserByUsername(username)) { username = `${baseUsername}${++attempt}`; }
-          // Use provided password or generate a random one
-          const rawPassword = input.password ?? crypto.randomBytes(16).toString('hex');
+          // Use provided password or generate a readable random one
+          const rawPassword = input.password ?? generateReadablePassword();
           const passwordHash = await bcrypt.hash(rawPassword, 10);
           const userId = await db.createUserWithPassword({ username, passwordHash, name: input.name, email: input.email, role: 'customer' });
           user = await db.getUserById(userId) ?? null;
+          // Send welcome email with credentials (fire-and-forget)
+          sendWelcomeEmail({ to: input.email, name: input.name, username, password: rawPassword }).catch(console.error);
         } else if (input.password) {
           // Update password if they provided one and already have an account
           const passwordHash = await bcrypt.hash(input.password, 10);
@@ -167,7 +180,7 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    // Magic link: generate token, log URL (wire email service later)
+    // Magic link: generate token, send via email
     sendMagicLink: publicProcedure
       .input(z.object({ email: z.string().email() }))
       .mutation(async ({ input }) => {
@@ -181,7 +194,7 @@ export const appRouter = router({
         await db.setMagicLinkToken(user.id, token, expiry);
         const link = `${process.env.APP_URL ?? 'http://localhost:5173'}/login?magic=${token}`;
         console.log(`[MagicLink] Login link for ${input.email}: ${link}`);
-        // TODO: send link via email service (Resend, SendGrid, etc.)
+        sendMagicLinkEmail({ to: input.email, name: user.name ?? user.username ?? "there", link }).catch(console.error);
         return { success: true };
       }),
 
