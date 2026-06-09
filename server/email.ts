@@ -52,87 +52,92 @@ export async function sendWelcomeEmail({
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#0a0a0a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<body style="margin:0;padding:0;background:#000000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <div style="max-width:580px;margin:0 auto;padding:40px 20px;">
 
     <!-- Header -->
     <div style="text-align:center;margin-bottom:36px;">
-      <p style="margin:0 0 6px;font-size:10px;letter-spacing:5px;text-transform:uppercase;color:#b8953a;">SCALE DETAILING SYSTEM</p>
-      <h1 style="margin:0;font-size:26px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">SOS Scorecard</h1>
+      <p style="margin:0 0 8px;font-size:10px;letter-spacing:6px;text-transform:uppercase;color:#b8953a;">SCALE DETAILING SYSTEM</p>
+      <h1 style="margin:0;font-size:28px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">SOS Scorecard</h1>
+      <div style="width:40px;height:2px;background:#b8953a;margin:12px auto 0;"></div>
     </div>
 
     <!-- Personal opener -->
     <div style="margin-bottom:28px;">
-      <p style="margin:0 0 16px;font-size:16px;line-height:1.7;color:#e0e0e0;">
+      <p style="margin:0 0 16px;font-size:17px;line-height:1.7;color:#ffffff;font-weight:600;">
         Hey ${firstName},
       </p>
-      <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#c0c0c0;">
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.8;color:#aaaaaa;">
         You just completed the SOS Assessment — and I want to be real with you: most shop owners who take this quiz are surprised by what they find.
       </p>
-      <p style="margin:0;font-size:15px;line-height:1.7;color:#c0c0c0;">
+      <p style="margin:0;font-size:15px;line-height:1.8;color:#aaaaaa;">
         Your results are live inside your account right now. Log in, take a look, and don't ignore what it's telling you.
       </p>
     </div>
 
     ${score != null ? `
-    <!-- Score teaser -->
-    <div style="background:#111111;border:1px solid #2a2a2a;border-radius:16px;padding:28px;margin-bottom:24px;text-align:center;">
-      <p style="margin:0 0 8px;font-size:10px;letter-spacing:4px;text-transform:uppercase;color:#666;">YOUR SOS SCORE</p>
-      <p style="margin:0 0 4px;font-size:56px;font-weight:900;color:${scoreColor};line-height:1;">${score}</p>
-      <p style="margin:0 0 16px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:${scoreColor};">${scoreLabel}</p>
-      <p style="margin:0;font-size:13px;color:#888;line-height:1.6;">
-        This score reflects where your business stands across the 6 pillars of a scalable detailing operation. Log in to see your full breakdown.
+    <!-- Score badge -->
+    <div style="background:#000000;border:1px solid #b8953a;border-radius:16px;padding:32px 24px;margin-bottom:24px;text-align:center;">
+      <p style="margin:0 0 10px;font-size:10px;letter-spacing:5px;text-transform:uppercase;color:#b8953a;">YOUR SOS SCORE</p>
+      <p style="margin:0 0 6px;font-size:72px;font-weight:900;color:#ffffff;line-height:1;letter-spacing:-2px;">${score}<span style="font-size:32px;color:#b8953a;">/100</span></p>
+      <p style="margin:0 0 20px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:4px;color:${scoreColor};">${scoreLabel}</p>
+      <div style="width:100%;background:#111111;border-radius:100px;height:6px;overflow:hidden;">
+        <div style="width:${score}%;height:6px;background:linear-gradient(90deg,#b8953a,${scoreColor});border-radius:100px;"></div>
+      </div>
+      <p style="margin:16px 0 0;font-size:13px;color:#666;line-height:1.6;">
+        This reflects where your business stands across the 6 pillars of a scalable detailing operation.
       </p>
     </div>` : ""}
 
     <!-- Login credentials -->
-    <div style="background:#111111;border:1px solid #1f1f1f;border-radius:16px;padding:24px;margin-bottom:24px;">
-      <p style="margin:0 0 16px;font-size:10px;letter-spacing:4px;text-transform:uppercase;color:#666;">YOUR LOGIN — SAVE THIS</p>
+    <div style="background:#0a0a0a;border:1px solid #222222;border-radius:16px;padding:24px;margin-bottom:24px;">
+      <p style="margin:0 0 16px;font-size:10px;letter-spacing:4px;text-transform:uppercase;color:#b8953a;">YOUR LOGIN — SAVE THIS</p>
       <table style="width:100%;border-collapse:collapse;">
         <tr>
-          <td style="padding:10px 0;font-size:12px;color:#666;width:90px;border-bottom:1px solid #1f1f1f;">Username</td>
-          <td style="padding:10px 0;font-size:14px;font-weight:700;color:#ffffff;font-family:'Courier New',monospace;border-bottom:1px solid #1f1f1f;">${username}</td>
+          <td style="padding:11px 0;font-size:12px;color:#555;width:90px;border-bottom:1px solid #1a1a1a;">Username</td>
+          <td style="padding:11px 0;font-size:14px;font-weight:700;color:#ffffff;font-family:'Courier New',monospace;border-bottom:1px solid #1a1a1a;">${username}</td>
         </tr>
         <tr>
-          <td style="padding:10px 0;font-size:12px;color:#666;">Password</td>
-          <td style="padding:10px 0;font-size:14px;font-weight:700;color:#ffffff;font-family:'Courier New',monospace;">${password}</td>
+          <td style="padding:11px 0;font-size:12px;color:#555;">Password</td>
+          <td style="padding:11px 0;font-size:14px;font-weight:700;color:#ffffff;font-family:'Courier New',monospace;">${password}</td>
         </tr>
       </table>
     </div>
 
     <!-- Primary CTA -->
     <div style="text-align:center;margin-bottom:32px;">
-      <a href="${loginUrl}" style="display:inline-block;background:#b8953a;color:#000000;text-decoration:none;font-weight:900;font-size:15px;letter-spacing:1.5px;padding:16px 40px;border-radius:12px;text-transform:uppercase;">
-        View My Full Results →
+      <a href="${loginUrl}" style="display:inline-block;background:#b8953a;color:#000000;text-decoration:none;font-weight:900;font-size:14px;letter-spacing:2px;padding:16px 44px;border-radius:10px;text-transform:uppercase;">
+        See My Full Breakdown →
       </a>
     </div>
 
     <!-- Divider -->
-    <div style="border-top:1px solid #1f1f1f;margin-bottom:28px;"></div>
+    <div style="border-top:1px solid #1a1a1a;margin-bottom:28px;"></div>
 
     <!-- Book a call section -->
     <div style="margin-bottom:32px;">
-      <p style="margin:0 0 12px;font-size:15px;line-height:1.7;color:#c0c0c0;">
-        If you're serious about changing your business — not just reading about it, but actually doing it — let's get on a call.
+      <p style="margin:0 0 6px;font-size:10px;letter-spacing:4px;text-transform:uppercase;color:#b8953a;">READY TO ACT ON IT?</p>
+      <p style="margin:0 0 14px;font-size:18px;font-weight:800;color:#ffffff;line-height:1.4;">
+        Let's turn your score into a real plan.
       </p>
-      <p style="margin:0 0 20px;font-size:15px;line-height:1.7;color:#c0c0c0;">
-        I'll walk through your score with you, show you exactly where your biggest gaps are, and give you a clear plan to fix them. No pressure, no pitch — just real talk about your business.
+      <p style="margin:0 0 20px;font-size:15px;line-height:1.8;color:#aaaaaa;">
+        Book a free strategy call and I'll walk through your results with you — where you're leaving money on the table, what to fix first, and exactly how to scale from where you are right now.
       </p>
       <div style="text-align:center;">
-        <a href="${bookUrl}" style="display:inline-block;background:transparent;color:#b8953a;text-decoration:none;font-weight:800;font-size:14px;letter-spacing:1px;padding:14px 36px;border-radius:12px;border:2px solid #b8953a;text-transform:uppercase;">
-          Change Your Business Now →
+        <a href="${bookUrl}" style="display:inline-block;background:#000000;color:#b8953a;text-decoration:none;font-weight:800;font-size:13px;letter-spacing:2px;padding:15px 40px;border-radius:10px;border:2px solid #b8953a;text-transform:uppercase;">
+          Book Your Free Strategy Call →
         </a>
       </div>
     </div>
 
     <!-- PS -->
-    <p style="margin:0 0 32px;font-size:13px;line-height:1.7;color:#666;">
-      <strong style="color:#888;">P.S.</strong> — Most shop owners wait. The ones who win don't. Your score is already telling you something — the question is what you do with it.
+    <p style="margin:0 0 32px;font-size:13px;line-height:1.8;color:#555;">
+      <strong style="color:#777;">P.S.</strong> — The shop owners who act on their score within 48 hours are the ones who actually move the needle. Don't let this sit in your inbox.
     </p>
 
     <!-- Footer -->
-    <div style="border-top:1px solid #1a1a1a;padding-top:24px;text-align:center;">
-      <p style="margin:0 0 4px;font-size:11px;color:#333;">Scale Detailing System · Powered by SOS Scorecard</p>
+    <div style="border-top:1px solid #111111;padding-top:24px;text-align:center;">
+      <p style="margin:0 0 4px;font-size:11px;color:#333;">Scale Detailing System · SOS Scorecard</p>
       <p style="margin:0;font-size:11px;color:#333;">
         Reply to this email anytime or <a href="${bookUrl}" style="color:#b8953a;text-decoration:none;">book a call</a>.
       </p>
