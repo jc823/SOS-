@@ -2735,6 +2735,30 @@ Do not use bullet points unless specifically asked. Write in plain paragraphs.`;
         await sendWelcomeEmail({ to: input.to, name: "JC Acosta", username: "jacosta0284", password: "Blue-River-4927", score: 62 });
         return { sent: true };
       }),
+
+    testReturningUserEmail: superAdminProcedure
+      .input(z.object({ to: z.string().email() }))
+      .mutation(async ({ input }) => {
+        await sendReturningUserEmail({
+          to: input.to,
+          name: "JC Acosta",
+          username: "jacosta0284",
+          score: 74,
+          magicLink: `${process.env.APP_URL ?? 'https://sos-production-ab11.up.railway.app'}/login`,
+        });
+        return { sent: true };
+      }),
+
+    testMagicLinkEmail: superAdminProcedure
+      .input(z.object({ to: z.string().email() }))
+      .mutation(async ({ input }) => {
+        await sendMagicLinkEmail({
+          to: input.to,
+          name: "JC Acosta",
+          link: `${process.env.APP_URL ?? 'https://sos-production-ab11.up.railway.app'}/login?magic=test-token-preview`,
+        });
+        return { sent: true };
+      }),
   }),
 
   billing: router({
