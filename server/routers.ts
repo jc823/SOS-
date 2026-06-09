@@ -167,9 +167,37 @@ export const appRouter = router({
           user = await db.getUserById(userId) ?? null;
           // Send welcome email with credentials (fire-and-forget)
           sendWelcomeEmail({ to: input.email, name: input.name, username, password: rawPassword, score: input.partialScore }).catch(console.error);
+          // Fire webhook for new lead → GHL etc.
+          webhookService.dispatchWebhookEvent("lead.registered", {
+            name: input.name,
+            firstName: input.name.trim().split(/\s+/)[0] ?? "",
+            lastName: input.name.trim().split(/\s+/).slice(1).join(" ") ?? "",
+            email: input.email,
+            phone: input.phone ?? "",
+            score: input.partialScore,
+            scoreLabel: input.partialScore >= 80 ? "Strong" : input.partialScore >= 60 ? "Growing" : input.partialScore >= 40 ? "Developing" : "Early Stage",
+            scoreTier: input.partialScore >= 80 ? "strong" : input.partialScore >= 60 ? "growing" : input.partialScore >= 40 ? "developing" : "early_stage",
+            source: "sos_quiz",
+            isNewContact: true,
+            appUrl: process.env.APP_URL ?? "https://sos-production-ab11.up.railway.app",
+          }).catch(console.error);
         } else {
           // Existing user — send "already have account" nudge (fire-and-forget)
           sendAlreadyHaveAccountEmail({ to: input.email, name: user.name ?? input.name }).catch(console.error);
+          // Fire webhook for returning lead (score update)
+          webhookService.dispatchWebhookEvent("lead.registered", {
+            name: user.name ?? input.name,
+            firstName: (user.name ?? input.name).trim().split(/\s+/)[0] ?? "",
+            lastName: (user.name ?? input.name).trim().split(/\s+/).slice(1).join(" ") ?? "",
+            email: input.email,
+            phone: input.phone ?? "",
+            score: input.partialScore,
+            scoreLabel: input.partialScore >= 80 ? "Strong" : input.partialScore >= 60 ? "Growing" : input.partialScore >= 40 ? "Developing" : "Early Stage",
+            scoreTier: input.partialScore >= 80 ? "strong" : input.partialScore >= 60 ? "growing" : input.partialScore >= 40 ? "developing" : "early_stage",
+            source: "sos_quiz",
+            isNewContact: false,
+            appUrl: process.env.APP_URL ?? "https://sos-production-ab11.up.railway.app",
+          }).catch(console.error);
           if (input.password) {
             const passwordHash = await bcrypt.hash(input.password, 10);
             await db.updateAdminPassword(user.id, passwordHash);
@@ -1250,10 +1278,20 @@ Return JSON:
       .mutation(async ({ input }) => {
         const wh = await webhookService.getWebhookById(input.id);
         if (!wh) throw new Error('Webhook not found');
-        // Temporarily dispatch even if inactive
-        await webhookService.dispatchWebhookEvent('assessment.created' as any, {
+        // Send a realistic test payload (same shape GHL will see on real leads)
+        await webhookService.dispatchWebhookEvent("lead.registered", {
+          name: "Test Lead",
+          firstName: "Test",
+          lastName: "Lead",
+          email: "test@example.com",
+          phone: "555-000-0000",
+          score: 62,
+          scoreLabel: "Growing",
+          scoreTier: "growing",
+          source: "sos_quiz",
+          isNewContact: true,
           test: true,
-          message: 'This is a test webhook delivery from Scale Toolkit',
+          appUrl: process.env.APP_URL ?? "https://sos-production-ab11.up.railway.app",
           timestamp: new Date().toISOString(),
         });
         return { success: true, message: 'Test event dispatched' };

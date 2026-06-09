@@ -11,11 +11,12 @@ import {
   ChevronLeft, Link2, Plus, Trash2, CheckCircle2, Copy, Ticket,
   Brain, AlertTriangle, RefreshCw, TrendingUp, Settings, BarChart3,
   UserCog, Mail, Calendar, Hash, Wrench, Palette, ShoppingCart, ClipboardList,
-  Phone, MapPin, NotebookText, ChevronDown, UserPlus, Building2,
+  Phone, MapPin, NotebookText, ChevronDown, UserPlus, Building2, Zap,
+  Eye, EyeOff, Activity, ChevronRight, XCircle,
 } from "lucide-react";
 
 type UserRole = "user" | "admin" | "super_admin" | "customer" | "shop_manager";
-type Tab = "overview" | "users" | "shops" | "invites" | "settings" | "ai";
+type Tab = "overview" | "users" | "shops" | "invites" | "settings" | "ai" | "integrations";
 
 const PERMISSIONS_CONFIG = [
   { key: "view_checklist",       label: "View Checklist" },
@@ -68,7 +69,32 @@ export default function AdminPanel() {
   const invitesQuery  = trpc.invites.list.useQuery(undefined,          { enabled: canQuery });
   const statsQuery    = trpc.admin.getStats.useQuery(undefined,        { enabled: canQuery });
   const settingsQuery = trpc.admin.getSettings.useQuery(undefined,     { enabled: canQuery });
-  const aiInsightsQuery = trpc.admin.getAIInsights.useQuery(undefined, { enabled: canQuery && tab === "ai" });
+  const aiInsightsQuery  = trpc.admin.getAIInsights.useQuery(undefined,  { enabled: canQuery && tab === "ai" });
+  const webhooksQuery    = trpc.webhooks.list.useQuery(undefined,         { enabled: canQuery && tab === "integrations" });
+
+  // Webhook form state
+  const [whName, setWhName]     = useState("");
+  const [whUrl, setWhUrl]       = useState("");
+  const [whSecret, setWhSecret] = useState("");
+  const [whShowSecret, setWhShowSecret] = useState(false);
+  const [whSelectedId, setWhSelectedId] = useState<number | null>(null);
+  const whDetailQuery = trpc.webhooks.getById.useQuery(
+    { id: whSelectedId! },
+    { enabled: !!whSelectedId && tab === "integrations" }
+  );
+
+  const createWebhook = trpc.webhooks.create.useMutation({
+    onSuccess: () => { webhooksQuery.refetch(); setWhName(""); setWhUrl(""); setWhSecret(""); toast.success("Webhook added!"); },
+    onError: (err) => toast.error(err.message),
+  });
+  const toggleWebhook = trpc.webhooks.update.useMutation({ onSuccess: () => webhooksQuery.refetch() });
+  const deleteWebhook = trpc.webhooks.delete.useMutation({
+    onSuccess: () => { webhooksQuery.refetch(); setWhSelectedId(null); toast.success("Webhook deleted."); },
+  });
+  const testWebhook = trpc.webhooks.test.useMutation({
+    onSuccess: () => toast.success("Test event sent — check your endpoint logs."),
+    onError: (err) => toast.error(`Test failed: ${err.message}`),
+  });
 
   const updateRole         = trpc.admin.updateUserRole.useMutation({ onSuccess: () => usersQuery.refetch() });
   const updateSubscription = trpc.admin.updateUserSubscription.useMutation({ onSuccess: () => usersQuery.refetch() });
@@ -136,8 +162,9 @@ export default function AdminPanel() {
     { id: "users"    as Tab, label: `Users (${allUsers.length})`,   icon: <Users size={14} /> },
     { id: "shops"    as Tab, label: `Shops (${allShops.length})`,   icon: <Store size={14} /> },
     { id: "invites"  as Tab, label: `Invites (${allInvites.length})`, icon: <Ticket size={14} /> },
-    { id: "settings" as Tab, label: "Settings",  icon: <Settings size={14} /> },
-    { id: "ai"       as Tab, label: "AI Insights", icon: <Brain size={14} /> },
+    { id: "settings"      as Tab, label: "Settings",     icon: <Settings size={14} /> },
+    { id: "integrations"  as Tab, label: "Integrations", icon: <Zap size={14} /> },
+    { id: "ai"            as Tab, label: "AI Insights",  icon: <Brain size={14} /> },
   ];
 
   // Group settings by category
@@ -620,6 +647,193 @@ export default function AdminPanel() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* ── Integrations ── */}
+        {tab === "integrations" && (
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-xl font-black mb-1">Integrations</h1>
+              <p className="text-sm text-muted-foreground">Send lead data to GoHighLevel, Zapier, or any webhook endpoint when someone completes the SOS quiz.</p>
+            </div>
+
+            {/* Event reference */}
+            <div className="bg-white/[0.03] border border-white/8 rounded-xl overflow-hidden">
+              <div className="px-6 py-4 border-b border-white/8 flex items-center gap-2">
+                <Activity size={14} className="text-gold" />
+                <h2 className="text-sm font-bold">Available Events</h2>
+              </div>
+              <div className="divide-y divide-white/5">
+                {[
+                  { event: "lead.registered", desc: "Fires every time someone submits the SOS quiz — new and returning leads", fields: "name, firstName, lastName, email, phone, score, scoreLabel, scoreTier, isNewContact, source" },
+                ].map(e => (
+                  <div key={e.event} className="px-6 py-4 flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <code className="text-xs bg-gold/10 text-gold px-2 py-0.5 rounded font-mono">{e.event}</code>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{e.desc}</p>
+                    <p className="text-[11px] text-white/30 font-mono mt-0.5">Fields: {e.fields}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Add webhook */}
+            <div className="bg-white/[0.03] border border-white/8 rounded-xl overflow-hidden">
+              <div className="px-6 py-4 border-b border-white/8 flex items-center gap-2">
+                <Plus size={14} className="text-gold" />
+                <h2 className="text-sm font-bold">Add Webhook</h2>
+              </div>
+              <div className="px-6 py-5 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Name</Label>
+                    <Input value={whName} onChange={e => setWhName(e.target.value)}
+                      placeholder="GoHighLevel Lead Intake"
+                      className="bg-white/5 border-white/10 text-sm h-9 focus:border-gold/50" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Webhook URL</Label>
+                    <Input value={whUrl} onChange={e => setWhUrl(e.target.value)}
+                      placeholder="https://services.leadconnectorhq.com/hooks/…"
+                      className="bg-white/5 border-white/10 text-sm h-9 focus:border-gold/50" />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Secret (optional — sent as X-Webhook-Signature for verification)</Label>
+                  <div className="relative">
+                    <Input value={whSecret} onChange={e => setWhSecret(e.target.value)}
+                      type={whShowSecret ? "text" : "password"}
+                      placeholder="Leave blank to skip signature verification"
+                      className="bg-white/5 border-white/10 text-sm h-9 focus:border-gold/50 pr-10" />
+                    <button onClick={() => setWhShowSecret(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white">
+                      {whShowSecret ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => createWebhook.mutate({ name: whName, url: whUrl, secret: whSecret || undefined, events: ["lead.registered"], active: true })}
+                  disabled={!whName || !whUrl || createWebhook.isPending}
+                  className="bg-gold text-black font-bold hover:bg-gold/90 h-9 px-5 text-xs">
+                  {createWebhook.isPending ? <><Loader2 size={12} className="animate-spin mr-1.5" />Adding…</> : <><Plus size={12} className="mr-1.5" />Add Webhook</>}
+                </Button>
+              </div>
+            </div>
+
+            {/* Webhook list */}
+            <div className="bg-white/[0.03] border border-white/8 rounded-xl overflow-hidden">
+              <div className="px-6 py-4 border-b border-white/8">
+                <h2 className="text-sm font-bold">Active Webhooks</h2>
+              </div>
+              {webhooksQuery.isLoading ? (
+                <div className="px-6 py-8 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={14} className="animate-spin" /> Loading…</div>
+              ) : (webhooksQuery.data ?? []).length === 0 ? (
+                <div className="px-6 py-10 text-center text-sm text-muted-foreground">No webhooks yet — add one above to start sending lead data to GHL.</div>
+              ) : (
+                <div className="divide-y divide-white/5">
+                  {(webhooksQuery.data ?? []).map((wh: any) => (
+                    <div key={wh.id} className="px-6 py-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-semibold">{wh.name}</span>
+                            <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wide ${wh.active ? "bg-green-500/15 text-green-400" : "bg-white/5 text-muted-foreground"}`}>
+                              {wh.active ? "Active" : "Paused"}
+                            </span>
+                            {wh.failCount > 0 && (
+                              <span className="text-[10px] bg-red-500/15 text-red-400 px-2 py-0.5 rounded font-bold">{wh.failCount} fail{wh.failCount > 1 ? "s" : ""}</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground font-mono truncate max-w-sm">{wh.url}</p>
+                          {wh.lastTriggeredAt && (
+                            <p className="text-[11px] text-white/30 mt-1">Last fired: {new Date(wh.lastTriggeredAt).toLocaleString()}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => setWhSelectedId(whSelectedId === wh.id ? null : wh.id)}
+                            className="text-xs text-muted-foreground hover:text-white flex items-center gap-1 px-2 py-1.5 rounded border border-white/10 hover:border-white/20 transition-colors">
+                            <Activity size={11} /> Logs
+                          </button>
+                          <button
+                            onClick={() => testWebhook.mutate({ id: wh.id })}
+                            disabled={testWebhook.isPending}
+                            className="text-xs text-gold hover:text-gold/80 flex items-center gap-1 px-2 py-1.5 rounded border border-gold/20 hover:border-gold/40 transition-colors disabled:opacity-50">
+                            <Zap size={11} /> Test
+                          </button>
+                          <button
+                            onClick={() => toggleWebhook.mutate({ id: wh.id, active: !wh.active })}
+                            className={`text-xs flex items-center gap-1 px-2 py-1.5 rounded border transition-colors ${wh.active ? "text-amber-400 border-amber-400/20 hover:border-amber-400/40" : "text-green-400 border-green-400/20 hover:border-green-400/40"}`}>
+                            {wh.active ? <><ToggleRight size={11} /> Pause</> : <><ToggleLeft size={11} /> Resume</>}
+                          </button>
+                          <button
+                            onClick={() => { if (confirm(`Delete "${wh.name}"?`)) deleteWebhook.mutate({ id: wh.id }); }}
+                            className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 px-2 py-1.5 rounded border border-red-400/20 hover:border-red-400/40 transition-colors">
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Delivery log drawer */}
+                      {whSelectedId === wh.id && (
+                        <div className="mt-4 bg-black/40 border border-white/8 rounded-lg overflow-hidden">
+                          <div className="px-4 py-3 border-b border-white/8 flex items-center justify-between">
+                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Recent Deliveries</span>
+                            {whDetailQuery.isLoading && <Loader2 size={12} className="animate-spin text-muted-foreground" />}
+                          </div>
+                          {(whDetailQuery.data?.deliveries ?? []).length === 0 ? (
+                            <p className="px-4 py-6 text-xs text-center text-muted-foreground">No deliveries yet — send a test or wait for the next quiz submission.</p>
+                          ) : (
+                            <div className="divide-y divide-white/5 max-h-64 overflow-y-auto">
+                              {(whDetailQuery.data?.deliveries ?? []).map((d: any) => (
+                                <div key={d.id} className="px-4 py-3 flex items-start gap-3">
+                                  <div className="mt-0.5">
+                                    {d.success
+                                      ? <CheckCircle2 size={13} className="text-green-400" />
+                                      : <XCircle size={13} className="text-red-400" />}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <code className="text-[10px] text-gold font-mono">{d.event}</code>
+                                      {d.responseStatus && <span className={`text-[10px] font-mono ${d.success ? "text-green-400" : "text-red-400"}`}>{d.responseStatus}</span>}
+                                    </div>
+                                    <p className="text-[11px] text-white/30">{new Date(d.deliveredAt).toLocaleString()}</p>
+                                    {d.responseBody && !d.success && (
+                                      <p className="text-[11px] text-red-300/70 mt-0.5 truncate">{d.responseBody}</p>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* GHL setup guide */}
+            <div className="bg-white/[0.03] border border-gold/10 rounded-xl overflow-hidden">
+              <div className="px-6 py-4 border-b border-gold/10 flex items-center gap-2">
+                <ChevronRight size={14} className="text-gold" />
+                <h2 className="text-sm font-bold text-gold">GoHighLevel Setup Guide</h2>
+              </div>
+              <div className="px-6 py-5 space-y-3 text-sm text-muted-foreground">
+                <p className="text-white/80">To route SOS leads directly into your GHL pipeline:</p>
+                <ol className="space-y-2 list-decimal list-inside text-sm">
+                  <li>In GHL, go to <strong className="text-white">Automation → Workflows → New Workflow</strong></li>
+                  <li>Add trigger: <strong className="text-white">Inbound Webhook</strong> — copy the webhook URL it gives you</li>
+                  <li>Paste that URL in the form above and save</li>
+                  <li>Map the fields in your GHL workflow — use <code className="text-gold text-xs">email</code>, <code className="text-gold text-xs">firstName</code>, <code className="text-gold text-xs">lastName</code>, <code className="text-gold text-xs">phone</code>, <code className="text-gold text-xs">score</code>, <code className="text-gold text-xs">scoreTier</code></li>
+                  <li>Add your GHL actions (create contact, add to pipeline, send SMS, etc.)</li>
+                  <li>Click <strong className="text-white">Test</strong> on the webhook above to send a sample payload and verify the mapping</li>
+                </ol>
+              </div>
+            </div>
           </div>
         )}
 
