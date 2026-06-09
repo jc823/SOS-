@@ -50,113 +50,106 @@ export async function sendWelcomeEmail({
     subject: `${firstName}, your SOS results are ready — here's what they mean`,
     html: `
 <!DOCTYPE html>
-<html bgcolor="#000000" style="background:#000000;">
+<html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="dark only">
   <meta name="supported-color-schemes" content="dark">
-  <style>
-    body, html { background-color: #000000 !important; }
-    * { box-sizing: border-box; }
-  </style>
 </head>
-<body style="margin:0;padding:0;background:#000000 !important;background-color:#000000 !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#000000" style="background:#000000;background-color:#000000;">
-<tr><td align="center" bgcolor="#000000" style="background:#000000;padding:0;">
-  <div style="max-width:580px;width:100%;margin:0 auto;padding:40px 20px;background:#000000;background-color:#000000;">
+<body style="margin:0;padding:0;background-color:#000000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<!-- Outer wrapper -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#000000" style="background-color:#000000;">
+<tr><td bgcolor="#000000" style="background-color:#000000;" align="center">
+<!-- Inner container -->
+<table role="presentation" width="580" cellpadding="0" cellspacing="0" bgcolor="#000000" style="background-color:#000000;max-width:580px;width:100%;">
 
-    <!-- Header -->
-    <div style="text-align:center;margin-bottom:36px;">
-      <p style="margin:0 0 8px;font-size:10px;letter-spacing:6px;text-transform:uppercase;color:#b8953a;">SCALE DETAILING SYSTEM</p>
-      <h1 style="margin:0;font-size:28px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">SOS Scorecard</h1>
-      <div style="width:40px;height:2px;background:#b8953a;margin:12px auto 0;"></div>
-    </div>
-
-    <!-- Personal opener -->
-    <div style="margin-bottom:28px;">
-      <p style="margin:0 0 16px;font-size:17px;line-height:1.7;color:#ffffff;font-weight:600;">
-        Hey ${firstName},
-      </p>
-      <p style="margin:0 0 16px;font-size:15px;line-height:1.8;color:#aaaaaa;">
-        You just completed the SOS Assessment — and I want to be real with you: most shop owners who take this quiz are surprised by what they find.
-      </p>
-      <p style="margin:0;font-size:15px;line-height:1.8;color:#aaaaaa;">
-        Your results are live inside your account right now. Log in, take a look, and don't ignore what it's telling you.
-      </p>
-    </div>
-
-    ${score != null ? `
-    <!-- Score badge -->
-    <div style="background:#000000;border:1px solid #b8953a;border-radius:16px;padding:32px 24px;margin-bottom:24px;text-align:center;">
-      <p style="margin:0 0 10px;font-size:10px;letter-spacing:5px;text-transform:uppercase;color:#b8953a;">YOUR SOS SCORE</p>
-      <p style="margin:0 0 6px;font-size:72px;font-weight:900;color:#ffffff;line-height:1;letter-spacing:-2px;">${score}<span style="font-size:32px;color:#b8953a;">/100</span></p>
-      <p style="margin:0 0 20px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:4px;color:${scoreColor};">${scoreLabel}</p>
-      <div style="width:100%;background:#111111;border-radius:100px;height:6px;overflow:hidden;">
-        <div style="width:${score}%;height:6px;background:linear-gradient(90deg,#b8953a,${scoreColor});border-radius:100px;"></div>
-      </div>
-      <p style="margin:16px 0 0;font-size:13px;color:#666;line-height:1.6;">
-        This reflects where your business stands across the 6 pillars of a scalable detailing operation.
-      </p>
-    </div>` : ""}
-
-    <!-- Login credentials -->
-    <div style="background:#0a0a0a;border:1px solid #222222;border-radius:16px;padding:24px;margin-bottom:24px;">
-      <p style="margin:0 0 16px;font-size:10px;letter-spacing:4px;text-transform:uppercase;color:#b8953a;">YOUR LOGIN — SAVE THIS</p>
-      <table style="width:100%;border-collapse:collapse;">
-        <tr>
-          <td style="padding:11px 0;font-size:12px;color:#555;width:90px;border-bottom:1px solid #1a1a1a;">Username</td>
-          <td style="padding:11px 0;font-size:14px;font-weight:700;color:#ffffff;font-family:'Courier New',monospace;border-bottom:1px solid #1a1a1a;">${username}</td>
-        </tr>
-        <tr>
-          <td style="padding:11px 0;font-size:12px;color:#555;">Password</td>
-          <td style="padding:11px 0;font-size:14px;font-weight:700;color:#ffffff;font-family:'Courier New',monospace;">${password}</td>
-        </tr>
-      </table>
-    </div>
-
-    <!-- Primary CTA -->
-    <div style="text-align:center;margin-bottom:32px;">
-      <a href="${loginUrl}" style="display:inline-block;background:#b8953a;color:#000000;text-decoration:none;font-weight:900;font-size:14px;letter-spacing:2px;padding:16px 44px;border-radius:10px;text-transform:uppercase;">
-        See My Full Breakdown →
-      </a>
-    </div>
-
-    <!-- Divider -->
-    <div style="border-top:1px solid #1a1a1a;margin-bottom:28px;"></div>
-
-    <!-- Book a call section -->
-    <div style="margin-bottom:32px;">
-      <p style="margin:0 0 6px;font-size:10px;letter-spacing:4px;text-transform:uppercase;color:#b8953a;">READY TO ACT ON IT?</p>
-      <p style="margin:0 0 14px;font-size:18px;font-weight:800;color:#ffffff;line-height:1.4;">
-        Let's turn your score into a real plan.
-      </p>
-      <p style="margin:0 0 20px;font-size:15px;line-height:1.8;color:#aaaaaa;">
-        Book a free strategy call and I'll walk through your results with you — where you're leaving money on the table, what to fix first, and exactly how to scale from where you are right now.
-      </p>
-      <div style="text-align:center;">
-        <a href="${bookUrl}" style="display:inline-block;background:#000000;color:#b8953a;text-decoration:none;font-weight:800;font-size:13px;letter-spacing:2px;padding:15px 40px;border-radius:10px;border:2px solid #b8953a;text-transform:uppercase;">
-          Book Your Free Strategy Call →
-        </a>
-      </div>
-    </div>
-
-    <!-- PS -->
-    <p style="margin:0 0 32px;font-size:13px;line-height:1.8;color:#555;">
-      <strong style="color:#777;">P.S.</strong> — The shop owners who act on their score within 48 hours are the ones who actually move the needle. Don't let this sit in your inbox.
-    </p>
-
-    <!-- Footer -->
-    <div style="border-top:1px solid #111111;padding-top:24px;text-align:center;">
-      <p style="margin:0 0 4px;font-size:11px;color:#333;">Scale Detailing System · SOS Scorecard</p>
-      <p style="margin:0;font-size:11px;color:#333;">
-        Reply to this email anytime or <a href="${bookUrl}" style="color:#b8953a;text-decoration:none;">book a call</a>.
-      </p>
-    </div>
-
-  </div>
+<!-- HEADER -->
+<tr><td bgcolor="#000000" style="background-color:#000000;padding:40px 24px 24px;text-align:center;">
+  <p style="margin:0 0 8px;font-size:10px;letter-spacing:6px;text-transform:uppercase;color:#b8953a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">SCALE DETAILING SYSTEM</p>
+  <h1 style="margin:0 0 12px;font-size:28px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">SOS Scorecard</h1>
+  <table role="presentation" cellpadding="0" cellspacing="0" align="center"><tr><td bgcolor="#b8953a" width="40" height="2" style="background-color:#b8953a;font-size:0;line-height:0;">&nbsp;</td></tr></table>
 </td></tr>
-</table>
+
+<!-- OPENER -->
+<tr><td bgcolor="#000000" style="background-color:#000000;padding:8px 24px 24px;">
+  <p style="margin:0 0 16px;font-size:17px;line-height:1.7;color:#ffffff;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Hey ${firstName},</p>
+  <p style="margin:0 0 14px;font-size:15px;line-height:1.8;color:#aaaaaa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">You just completed the SOS Assessment — and I want to be real with you: most shop owners who take this quiz are surprised by what they find.</p>
+  <p style="margin:0;font-size:15px;line-height:1.8;color:#aaaaaa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Your results are live inside your account right now. Log in, take a look, and don't ignore what it's telling you.</p>
+</td></tr>
+
+${score != null ? `
+<!-- SCORE BADGE -->
+<tr><td bgcolor="#000000" style="background-color:#000000;padding:0 24px 24px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #b8953a;border-radius:12px;">
+  <tr><td bgcolor="#000000" style="background-color:#000000;padding:28px 24px;text-align:center;border-radius:12px;">
+    <p style="margin:0 0 10px;font-size:10px;letter-spacing:5px;text-transform:uppercase;color:#b8953a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">YOUR SOS SCORE</p>
+    <p style="margin:0 0 6px;font-size:72px;font-weight:900;color:#ffffff;line-height:1;letter-spacing:-2px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${score}<span style="font-size:32px;color:#b8953a;">/100</span></p>
+    <p style="margin:0 0 20px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:4px;color:${scoreColor};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">${scoreLabel}</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td bgcolor="#111111" style="background-color:#111111;border-radius:6px;height:6px;font-size:0;line-height:0;">
+        <table role="presentation" cellpadding="0" cellspacing="0"><tr><td bgcolor="${scoreColor}" width="${Math.round(score * 5.3)}" height="6" style="background-color:${scoreColor};border-radius:6px;font-size:0;line-height:0;">&nbsp;</td></tr></table>
+      </td>
+    </tr></table>
+    <p style="margin:14px 0 0;font-size:13px;color:#666666;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">This reflects where your business stands across the 6 pillars of a scalable detailing operation.</p>
+  </td></tr>
+  </table>
+</td></tr>
+` : ""}
+
+<!-- LOGIN CREDENTIALS -->
+<tr><td bgcolor="#000000" style="background-color:#000000;padding:0 24px 24px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #222222;border-radius:12px;">
+  <tr><td bgcolor="#0a0a0a" style="background-color:#0a0a0a;padding:24px;border-radius:12px;">
+    <p style="margin:0 0 16px;font-size:10px;letter-spacing:4px;text-transform:uppercase;color:#b8953a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">YOUR LOGIN — SAVE THIS</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td width="90" style="padding:10px 0;font-size:12px;color:#555555;border-bottom:1px solid #1a1a1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Username</td>
+        <td style="padding:10px 0;font-size:14px;font-weight:700;color:#ffffff;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1a1a1a;">${username}</td>
+      </tr>
+      <tr>
+        <td width="90" style="padding:10px 0;font-size:12px;color:#555555;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Password</td>
+        <td style="padding:10px 0;font-size:14px;font-weight:700;color:#ffffff;font-family:'Courier New',Courier,monospace;">${password}</td>
+      </tr>
+    </table>
+  </td></tr>
+  </table>
+</td></tr>
+
+<!-- PRIMARY CTA -->
+<tr><td bgcolor="#000000" style="background-color:#000000;padding:0 24px 32px;text-align:center;">
+  <a href="${loginUrl}" style="display:inline-block;background-color:#b8953a;color:#000000;text-decoration:none;font-weight:900;font-size:14px;letter-spacing:2px;padding:16px 44px;border-radius:10px;text-transform:uppercase;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">See My Full Breakdown →</a>
+</td></tr>
+
+<!-- DIVIDER -->
+<tr><td bgcolor="#000000" style="background-color:#000000;padding:0 24px 28px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td bgcolor="#1a1a1a" height="1" style="background-color:#1a1a1a;font-size:0;line-height:0;">&nbsp;</td></tr></table>
+</td></tr>
+
+<!-- BOOK A CALL -->
+<tr><td bgcolor="#000000" style="background-color:#000000;padding:0 24px 32px;">
+  <p style="margin:0 0 6px;font-size:10px;letter-spacing:4px;text-transform:uppercase;color:#b8953a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">READY TO ACT ON IT?</p>
+  <p style="margin:0 0 14px;font-size:18px;font-weight:800;color:#ffffff;line-height:1.4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Let's turn your score into a real plan.</p>
+  <p style="margin:0 0 20px;font-size:15px;line-height:1.8;color:#aaaaaa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Book a free strategy call and I'll walk through your results with you — where you're leaving money on the table, what to fix first, and exactly how to scale from where you are right now.</p>
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+    <a href="${bookUrl}" style="display:inline-block;background-color:#000000;color:#b8953a;text-decoration:none;font-weight:800;font-size:13px;letter-spacing:2px;padding:15px 40px;border-radius:10px;border:2px solid #b8953a;text-transform:uppercase;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Book Your Free Strategy Call →</a>
+  </td></tr></table>
+</td></tr>
+
+<!-- PS -->
+<tr><td bgcolor="#000000" style="background-color:#000000;padding:0 24px 32px;">
+  <p style="margin:0;font-size:13px;line-height:1.8;color:#555555;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"><strong style="color:#777777;">P.S.</strong> — The shop owners who act on their score within 48 hours are the ones who actually move the needle. Don't let this sit in your inbox.</p>
+</td></tr>
+
+<!-- FOOTER -->
+<tr><td bgcolor="#000000" style="background-color:#000000;padding:0 24px 40px;border-top:1px solid #111111;text-align:center;">
+  <p style="margin:16px 0 4px;font-size:11px;color:#333333;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Scale Detailing System · SOS Scorecard</p>
+  <p style="margin:0;font-size:11px;color:#333333;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Reply anytime or <a href="${bookUrl}" style="color:#b8953a;text-decoration:none;">book a call</a>.</p>
+</td></tr>
+
+</table><!-- /inner -->
+</td></tr>
+</table><!-- /outer -->
 </body>
 </html>`,
   });
