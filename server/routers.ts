@@ -166,7 +166,7 @@ export const appRouter = router({
           const userId = await db.createUserWithPassword({ username, passwordHash, name: input.name, email: input.email, role: 'customer' });
           user = await db.getUserById(userId) ?? null;
           // Send welcome email with credentials (fire-and-forget)
-          sendWelcomeEmail({ to: input.email, name: input.name, username, password: rawPassword }).catch(console.error);
+          sendWelcomeEmail({ to: input.email, name: input.name, username, password: rawPassword, score: input.partialScore }).catch(console.error);
         } else {
           // Existing user — send "already have account" nudge (fire-and-forget)
           sendAlreadyHaveAccountEmail({ to: input.email, name: user.name ?? input.name }).catch(console.error);
@@ -2683,7 +2683,7 @@ Do not use bullet points unless specifically asked. Write in plain paragraphs.`;
     testWelcomeEmail: superAdminProcedure
       .input(z.object({ to: z.string().email() }))
       .mutation(async ({ input }) => {
-        await sendWelcomeEmail({ to: input.to, name: "JC Acosta", username: "jacosta0284", password: "Blue-River-4927" });
+        await sendWelcomeEmail({ to: input.to, name: "JC Acosta", username: "jacosta0284", password: "Blue-River-4927", score: 62 });
         return { sent: true };
       }),
   }),
