@@ -301,42 +301,72 @@ export async function sendMagicLinkEmail({
 
   await sendEmail({
     to,
-    subject: "Your SOS Scorecard login link",
+    subject: `${firstName}, here's your one-click login link`,
     html: `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#0a0a0a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-  <div style="max-width:560px;margin:0 auto;padding:40px 24px;">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark only">
+  <meta name="supported-color-schemes" content="dark">
+</head>
+<body style="margin:0;padding:0;background-color:#000000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#000000" style="background-color:#000000;">
+<tr><td bgcolor="#000000" style="background-color:#000000;" align="center">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" bgcolor="#000000" style="background-color:#000000;max-width:560px;width:100%;">
 
-    <div style="text-align:center;margin-bottom:32px;">
-      <p style="margin:0 0 8px;font-size:11px;letter-spacing:4px;text-transform:uppercase;color:#b8953a;">SCALE DETAILING SYSTEM</p>
-      <h1 style="margin:0;font-size:28px;font-weight:900;color:#ffffff;">SOS Scorecard</h1>
-    </div>
+<!-- HEADER -->
+<tr><td bgcolor="#000000" style="background-color:#000000;padding:40px 24px 24px;text-align:center;">
+  <p style="margin:0 0 8px;font-size:10px;letter-spacing:6px;text-transform:uppercase;color:#b8953a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">SCALE DETAILING SYSTEM</p>
+  <h1 style="margin:0 0 12px;font-size:26px;font-weight:900;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">SOS Scorecard</h1>
+  <table role="presentation" cellpadding="0" cellspacing="0" align="center"><tr><td bgcolor="#b8953a" width="40" height="2" style="background-color:#b8953a;font-size:0;line-height:0;">&nbsp;</td></tr></table>
+</td></tr>
 
-    <div style="background:#111111;border:1px solid #1f1f1f;border-radius:16px;padding:32px;">
-      <p style="margin:0 0 8px;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#b8953a;">SIGN IN</p>
-      <h2 style="margin:0 0 16px;font-size:22px;font-weight:800;color:#ffffff;">Hey ${firstName} 👋</h2>
-      <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#a0a0a0;">
-        Here's your one-click login link. It expires in 15 minutes.
-      </p>
+<!-- SIGN IN LABEL -->
+<tr><td bgcolor="#000000" style="background-color:#000000;padding:8px 24px 6px;">
+  <p style="margin:0;font-size:10px;letter-spacing:4px;text-transform:uppercase;color:#b8953a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">SIGN IN</p>
+</td></tr>
 
-      <div style="text-align:center;margin-bottom:24px;">
-        <a href="${link}" style="display:inline-block;background:#b8953a;color:#000000;text-decoration:none;font-weight:800;font-size:14px;letter-spacing:1px;padding:14px 32px;border-radius:10px;">
-          LOG IN NOW →
-        </a>
-      </div>
+<!-- HEADLINE -->
+<tr><td bgcolor="#000000" style="background-color:#000000;padding:0 24px 16px;">
+  <h2 style="margin:0;font-size:22px;font-weight:800;color:#ffffff;line-height:1.3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Hey ${firstName}, tap the button to sign in.</h2>
+</td></tr>
 
-      <p style="margin:0;font-size:12px;color:#555;">
-        If you didn't request this, you can safely ignore it. The link only works once.
-      </p>
-    </div>
+<!-- BODY COPY -->
+<tr><td bgcolor="#000000" style="background-color:#000000;padding:0 24px 28px;">
+  <p style="margin:0;font-size:15px;line-height:1.8;color:#aaaaaa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">This link logs you straight into your SOS Scorecard account — no password needed. It expires in <strong style="color:#ffffff;">15 minutes</strong> and works only once.</p>
+</td></tr>
 
-    <div style="text-align:center;margin-top:32px;">
-      <p style="margin:0;font-size:11px;color:#333;">Powered by Scale Detailing System</p>
-    </div>
+<!-- CTA -->
+<tr><td bgcolor="#000000" style="background-color:#000000;padding:0 24px 32px;text-align:center;">
+  <a href="${link}" style="display:inline-block;background-color:#b8953a;color:#000000;text-decoration:none;font-weight:900;font-size:15px;letter-spacing:2px;padding:18px 52px;border-radius:10px;text-transform:uppercase;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Log In Now →</a>
+</td></tr>
 
-  </div>
+<!-- FALLBACK URL -->
+<tr><td bgcolor="#000000" style="background-color:#000000;padding:0 24px 28px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #1a1a1a;border-radius:10px;">
+  <tr><td bgcolor="#0a0a0a" style="background-color:#0a0a0a;padding:16px 20px;border-radius:10px;">
+    <p style="margin:0 0 6px;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#444444;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">BUTTON NOT WORKING?</p>
+    <p style="margin:0 0 8px;font-size:12px;color:#666666;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Copy and paste this URL into your browser:</p>
+    <p style="margin:0;font-size:11px;color:#b8953a;word-break:break-all;font-family:'Courier New',Courier,monospace;">${link}</p>
+  </td></tr>
+  </table>
+</td></tr>
+
+<!-- SECURITY NOTE -->
+<tr><td bgcolor="#000000" style="background-color:#000000;padding:0 24px 16px;">
+  <p style="margin:0;font-size:12px;color:#444444;line-height:1.7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Didn't request this? You can safely ignore it — your account is secure and nothing has changed.</p>
+</td></tr>
+
+<!-- FOOTER -->
+<tr><td bgcolor="#000000" style="background-color:#000000;padding:0 24px 40px;border-top:1px solid #111111;text-align:center;">
+  <p style="margin:16px 0 0;font-size:11px;color:#333333;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Scale Detailing System · SOS Scorecard</p>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
 </body>
 </html>`,
   });

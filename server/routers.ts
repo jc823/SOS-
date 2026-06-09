@@ -232,9 +232,9 @@ export const appRouter = router({
           return { success: true };
         }
         const token = crypto.randomBytes(32).toString('hex');
-        const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+        const expiry = new Date(Date.now() + 30 * 60 * 1000); // 30 min
         await db.setMagicLinkToken(user.id, token, expiry);
-        const link = `${process.env.APP_URL ?? 'http://localhost:5173'}/login?magic=${token}`;
+        const link = `${process.env.APP_URL ?? 'https://sos-production-ab11.up.railway.app'}/login?magic=${token}`;
         console.log(`[MagicLink] Login link for ${input.email}: ${link}`);
         sendMagicLinkEmail({ to: input.email, name: user.name ?? user.username ?? "there", link }).catch(console.error);
         return { success: true };

@@ -32,6 +32,8 @@ export default function Login() {
   const [showGoogleToast, setShowGoogleToast] = useState(false);
 
   // ── Auto-verify magic token from URL ──────────────────────────────────────
+  const [magicLinkError, setMagicLinkError] = useState('');
+
   const verifyMutation = trpc.auth.verifyMagicLink.useMutation({
     onSuccess: (data) => {
       const u = data.user as any;
@@ -39,7 +41,10 @@ export default function Login() {
       else if (u?.techLevel) navigate('/tech');
       else navigate(returnPath);
     },
-    onError: () => { /* token expired — stay on login */ },
+    onError: () => {
+      setMagicLinkError('This link has expired or already been used. Request a new one below.');
+      setTab('magic');
+    },
   });
 
   useEffect(() => {
@@ -252,7 +257,7 @@ export default function Login() {
                   <h3 className="text-base font-bold mb-2">Check your inbox</h3>
                   <p className="text-sm text-muted-foreground mb-4">
                     If an account exists for <strong>{magicEmail}</strong>, we've sent
-                    a magic sign-in link. It expires in 15 minutes.
+                    a magic sign-in link. It expires in 30 minutes.
                   </p>
                   <button
                     onClick={() => { setMagicSent(false); setMagicEmail(''); }}
@@ -263,10 +268,10 @@ export default function Login() {
                 </div>
               ) : (
                 <form onSubmit={handleMagicSubmit} className="space-y-5">
-                  {magicError && (
+                  {(magicError || magicLinkError) && (
                     <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5">
                       <AlertCircle size={14} className="text-red-400 shrink-0" />
-                      <span className="text-xs text-red-400">{magicError}</span>
+                      <span className="text-xs text-red-400">{magicLinkError || magicError}</span>
                     </div>
                   )}
 
