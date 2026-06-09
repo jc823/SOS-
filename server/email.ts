@@ -101,6 +101,71 @@ export async function sendWelcomeEmail({
   });
 }
 
+// ─── Already have account email ──────────────────────────────────────────────
+export async function sendAlreadyHaveAccountEmail({
+  to,
+  name,
+  loginUrl,
+}: {
+  to: string;
+  name: string;
+  loginUrl?: string;
+}) {
+  const firstName = name?.split(" ")[0] ?? "there";
+  const url = loginUrl ?? `${APP_URL}/login`;
+
+  await sendEmail({
+    to,
+    subject: "You already have an SOS Scorecard account",
+    html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0a0a0a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <div style="max-width:560px;margin:0 auto;padding:40px 24px;">
+
+    <div style="text-align:center;margin-bottom:32px;">
+      <p style="margin:0 0 8px;font-size:11px;letter-spacing:4px;text-transform:uppercase;color:#b8953a;">SCALE DETAILING SYSTEM</p>
+      <h1 style="margin:0;font-size:28px;font-weight:900;color:#ffffff;">SOS Scorecard</h1>
+    </div>
+
+    <div style="background:#111111;border:1px solid #1f1f1f;border-radius:16px;padding:32px;">
+      <p style="margin:0 0 8px;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#b8953a;">WELCOME BACK</p>
+      <h2 style="margin:0 0 16px;font-size:22px;font-weight:800;color:#ffffff;">Hey ${firstName}, you're already in! 👋</h2>
+      <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#a0a0a0;">
+        Looks like you already have an SOS Scorecard account tied to this email.
+        No need to sign up again — just log in to pick up where you left off.
+      </p>
+
+      <div style="text-align:center;margin-bottom:24px;">
+        <a href="${url}" style="display:inline-block;background:#b8953a;color:#000000;text-decoration:none;font-weight:800;font-size:14px;letter-spacing:1px;padding:14px 32px;border-radius:10px;">
+          LOG IN TO MY ACCOUNT →
+        </a>
+      </div>
+
+      <div style="background:#0a0a0a;border:1px solid #2a2a2a;border-radius:12px;padding:16px;margin-bottom:24px;">
+        <p style="margin:0 0 8px;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#666;">FORGOT YOUR PASSWORD?</p>
+        <p style="margin:0;font-size:13px;color:#888;line-height:1.6;">
+          On the login page, click <strong style="color:#b8953a;">"Magic Link"</strong> and we'll email you a one-click login — no password needed.
+        </p>
+      </div>
+
+      <p style="margin:0;font-size:12px;color:#555;">
+        Need help? Reply to this email or
+        <a href="https://link.omniscalesystems.com/widget/bookings/scaleroadmapcallhmt7g2" style="color:#b8953a;">book a call</a>.
+      </p>
+    </div>
+
+    <div style="text-align:center;margin-top:32px;">
+      <p style="margin:0;font-size:11px;color:#333;">Powered by Scale Detailing System</p>
+    </div>
+
+  </div>
+</body>
+</html>`,
+  });
+}
+
 // ─── Magic link email ─────────────────────────────────────────────────────────
 export async function sendMagicLinkEmail({
   to,

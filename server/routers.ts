@@ -1,5 +1,5 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
-import { sendWelcomeEmail, sendMagicLinkEmail } from "./email";
+import { sendWelcomeEmail, sendMagicLinkEmail, sendAlreadyHaveAccountEmail } from "./email";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, staffProcedure, adminProcedure, superAdminProcedure, proProcedure, shopManagerProcedure, router } from "./_core/trpc";
@@ -167,10 +167,13 @@ export const appRouter = router({
           user = await db.getUserById(userId) ?? null;
           // Send welcome email with credentials (fire-and-forget)
           sendWelcomeEmail({ to: input.email, name: input.name, username, password: rawPassword }).catch(console.error);
-        } else if (input.password) {
-          // Update password if they provided one and already have an account
-          const passwordHash = await bcrypt.hash(input.password, 10);
-          await db.updateAdminPassword(user.id, passwordHash);
+        } else {
+          // Existing user — send "already have account" nudge (fire-and-forget)
+          sendAlreadyHaveAccountEmail({ to: input.email, name: user.name ?? input.name }).catch(console.error);
+          if (input.password) {
+            const passwordHash = await bcrypt.hash(input.password, 10);
+            await db.updateAdminPassword(user.id, passwordHash);
+          }
         }
         if (!user) throw new Error("Failed to create account");
         await db.upsertUser({ openId: user.openId, lastSignedIn: new Date() });
@@ -2675,6 +2678,13 @@ Do not use bullet points unless specifically asked. Write in plain paragraphs.`;
           html: "<p>If you see this, email is working!</p>",
         });
         return { data: result.data, error: result.error, from, keyPrefix: key.slice(0, 8) };
+      }),
+
+    testWelcomeEmail: superAdminProcedure
+      .input(z.object({ to: z.string().email() }))
+      .mutation(async ({ input }) => {
+        await sendWelcomeEmail({ to: input.to, name: "JC Acosta", username: "jacosta0284", password: "Blue-River-4927" });
+        return { sent: true };
       }),
   }),
 
