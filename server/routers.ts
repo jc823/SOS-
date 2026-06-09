@@ -151,6 +151,17 @@ export const appRouter = router({
         phone: z.string(),
         partialScore: z.number(),
         password: z.string().min(6).optional(),
+        // Full answer capture — keyed by question ID, value 0-3
+        answers: z.record(z.string(), z.number()).optional(),
+        pillarScores: z.record(z.string(), z.object({ score: z.number(), max: z.number(), pct: z.number() })).optional(),
+        band: z.string().optional(),
+        completedPhase2: z.boolean().optional(),
+        // Business context for AI
+        businessType: z.string().optional(),
+        teamSize: z.string().optional(),
+        yearsInBusiness: z.string().optional(),
+        city: z.string().optional(),
+        state: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         // If email already exists, just log them in
@@ -216,9 +227,53 @@ export const appRouter = router({
         }
         if (!user) throw new Error("Failed to create account");
         await db.upsertUser({ openId: user.openId, lastSignedIn: new Date() });
+
+        // Save quiz response snapshot (phase 1 answers + business context)
+        db.saveQuizResponse({
+          userId: user.id,
+          name: input.name,
+          email: input.email,
+          phone: input.phone,
+          businessType: input.businessType ?? null,
+          teamSize: input.teamSize ?? null,
+          yearsInBusiness: input.yearsInBusiness ?? null,
+          answers: (input.answers ?? {}) as Record<string, number>,
+          totalScore: input.partialScore,
+          maxScore: 24,
+          percentage: Math.round((input.partialScore / 24) * 100),
+          pillarScores: (input.pillarScores ?? {}) as Record<string, { score: number; max: number; pct: number }>,
+          band: input.band ?? null,
+          completedPhase2: input.completedPhase2 ?? false,
+        }).catch(console.error);
+
         const sessionToken = await sdk.createSessionToken(user.openId, { name: user.name || '', expiresInMs: ONE_YEAR_MS });
         const cookieOptions = getSessionCookieOptions(ctx.req);
         ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+        return { success: true };
+      }),
+
+    // Save full quiz results after phase 2 completes
+    quizComplete: protectedProcedure
+      .input(z.object({
+        answers: z.record(z.string(), z.number()),
+        pillarScores: z.record(z.string(), z.object({ score: z.number(), max: z.number(), pct: z.number() })),
+        totalScore: z.number(),
+        percentage: z.number(),
+        band: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await db.saveQuizResponse({
+          userId: ctx.user.id,
+          name: ctx.user.name,
+          email: ctx.user.email,
+          answers: input.answers as Record<string, number>,
+          totalScore: input.totalScore,
+          maxScore: 24,
+          percentage: input.percentage,
+          pillarScores: input.pillarScores as Record<string, { score: number; max: number; pct: number }>,
+          band: input.band,
+          completedPhase2: true,
+        });
         return { success: true };
       }),
 

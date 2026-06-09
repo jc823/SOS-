@@ -175,6 +175,87 @@ export const webhookDeliveries = pgTable("webhookDeliveries", {
 export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
 export type InsertWebhookDelivery = typeof webhookDeliveries.$inferInsert;
 
+// ─── Quiz Responses ───────────────────────────────────────────────────────────
+// Stores every quiz submission with full answer-level detail.
+// Designed to be vector-ready: embeddingJson holds the float array as text now.
+// When pgvector is enabled on Railway, migrate embeddingJson → vector(1536).
+export const quizResponses = pgTable("quizResponses", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId"),                    // null until account created
+
+  // Contact / identity
+  name: text("name"),
+  email: text("email"),
+  phone: text("phone"),
+
+  // Business context (captured at quiz gate — richer AI context)
+  businessType: text("businessType"),           // "mobile" | "fixed" | "both"
+  teamSize: text("teamSize"),                   // "solo" | "1-3" | "4-10" | "10+"
+  yearsInBusiness: text("yearsInBusiness"),     // "< 1" | "1-3" | "3-7" | "7+"
+  city: text("city"),
+  state: text("state"),
+
+  // Quiz answers — every question, not just the score
+  answers: jsonb("answers").notNull(),          // { "sales-process": 2, "pricing": 1, ... }
+  totalScore: integer("totalScore").notNull(),
+  maxScore: integer("maxScore").notNull().default(24),
+  percentage: integer("percentage").notNull(),
+  pillarScores: jsonb("pillarScores").notNull(), // { "Sales Process": { score, max, pct }, ... }
+  band: text("band"),                            // "Scaling Ready" | "Building Momentum" | "Needs Focus" | "At Risk"
+  completedPhase2: boolean("completedPhase2").default(false).notNull(),
+
+  // Behavioral signals (useful for AI pattern detection)
+  bookedCall: boolean("bookedCall").default(false),   // did they click book-a-call from email?
+  becameCustomer: boolean("becameCustomer").default(false), // did they upgrade to paid?
+  retakeCount: integer("retakeCount").default(0),     // how many times they've taken it
+
+  // Embedding placeholder — populated when pgvector goes live
+  // Represents: business profile + answers as a semantic vector for similarity search
+  embeddingJson: text("embeddingJson"),          // JSON array of floats, e.g. "[0.12, -0.04, ...]"
+  embeddingModel: text("embeddingModel"),        // e.g. "text-embedding-3-small"
+  embeddingUpdatedAt: timestamp("embeddingUpdatedAt"),
+
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+export type QuizResponse = typeof quizResponses.$inferSelect;
+export type InsertQuizResponse = typeof quizResponses.$inferInsert;
+
+// ─── AI Knowledge Base ────────────────────────────────────────────────────────
+// The RAG knowledge base for the future detailer AI assistant.
+// Chunks can come from: quiz pattern analysis, coaching notes, your own expertise,
+// industry articles, or anything else you want the AI to know.
+// When pgvector goes live, add embedding vector(1536) and build semantic search on top.
+export const knowledgeChunks = pgTable("knowledgeChunks", {
+  id: serial("id").primaryKey(),
+
+  // Content
+  title: text("title"),                          // short label, e.g. "Weak Sales Process Pattern"
+  content: text("content").notNull(),            // the actual knowledge text the AI will reference
+  source: text("source").notNull(),              // "quiz_insight" | "coaching_note" | "manual" | "pattern"
+  tags: jsonb("tags"),                           // ["sales-process", "retention", "pricing", ...]
+
+  // Which businesses this applies to (for filtered retrieval)
+  pillar: text("pillar"),                        // "Sales Process" | "Retention" | etc. — primary pillar
+  scoreBand: text("scoreBand"),                  // "Scaling Ready" | "Needs Focus" | null = all bands
+  businessType: text("businessType"),            // "mobile" | "fixed" | null = all
+
+  // AI metadata
+  embeddingJson: text("embeddingJson"),
+  embeddingModel: text("embeddingModel"),
+  embeddingUpdatedAt: timestamp("embeddingUpdatedAt"),
+
+  // Management
+  active: boolean("active").default(true).notNull(),
+  createdById: integer("createdById"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+export type KnowledgeChunk = typeof knowledgeChunks.$inferSelect;
+export type InsertKnowledgeChunk = typeof knowledgeChunks.$inferInsert;
+
 // ─── SEO Audits ───
 export const seoAudits = pgTable("seoAudits", {
   id: serial("id").primaryKey(),

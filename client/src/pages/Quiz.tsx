@@ -38,7 +38,7 @@ export default function Quiz() {
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [phase, setPhase] = useState<1 | 2>(1); // 1 = pre-gate, 2 = post-gate
 
-  // Gate form
+  // Gate form — contact
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -47,10 +47,16 @@ export default function Quiz() {
   const [gateError, setGateError] = useState("");
   const [gateLoading, setGateLoading] = useState(false);
 
+  // Gate form — business context (required for AI data)
+  const [businessType, setBusinessType] = useState("");
+  const [teamSize, setTeamSize] = useState("");
+  const [yearsInBusiness, setYearsInBusiness] = useState("");
+
   const [result, setResult] = useState<QuizResult | null>(null);
   const [redirecting, setRedirecting] = useState(false);
 
   const quizRegister = trpc.auth.quizRegister.useMutation();
+  const quizComplete = trpc.auth.quizComplete.useMutation();
 
   // Auto-redirect after results — must be at top level, not inside if block
   useEffect(() => {
@@ -89,10 +95,18 @@ export default function Quiz() {
       if (currentIndex < phaseQuestions.length - 1) {
         setCurrentIndex(currentIndex + 1);
       } else {
-        // All done — compute results
+        // All done — compute results and save full response
         const r = computeQuizResult(newAnswers);
         setResult(r);
         setStep("results");
+        // Save complete results to DB (fire-and-forget)
+        quizComplete.mutate({
+          answers: newAnswers,
+          pillarScores: r.pillarScores,
+          totalScore: r.totalScore,
+          percentage: r.percentage,
+          band: r.band,
+        });
       }
     }
   }
@@ -108,7 +122,19 @@ export default function Quiz() {
   async function handleGateSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !email.trim() || !phone.trim()) {
-      setGateError("All fields are required.");
+      setGateError("Please fill in your name, email, and phone.");
+      return;
+    }
+    if (!businessType) {
+      setGateError("Please select your business type.");
+      return;
+    }
+    if (!teamSize) {
+      setGateError("Please select your team size.");
+      return;
+    }
+    if (!yearsInBusiness) {
+      setGateError("Please select how long you've been in business.");
       return;
     }
     if (password && password.length < 6) {
@@ -120,10 +146,18 @@ export default function Quiz() {
 
     const phase1Score = Object.values(answers).reduce((s, v) => s + v, 0);
 
-    // Fire GHL webhook + silently create/login account
+    // Fire GHL webhook + create/login account with full business context
     await Promise.allSettled([
       sendLeadToGHL({ name, email, phone, partialScore: phase1Score }),
-      quizRegister.mutateAsync({ name, email, phone, partialScore: phase1Score, password: password || undefined }),
+      quizRegister.mutateAsync({
+        name, email, phone,
+        partialScore: phase1Score,
+        password: password || undefined,
+        businessType,
+        teamSize,
+        yearsInBusiness,
+        answers,
+      }),
     ]);
 
     setGateLoading(false);
@@ -211,7 +245,9 @@ export default function Quiz() {
             </p>
           </div>
 
-          <form onSubmit={handleGateSubmit} className="bg-white/[0.03] border border-white/8 rounded-2xl p-6 space-y-4">
+          <form onSubmit={handleGateSubmit} className="bg-white/[0.03] border border-white/8 rounded-2xl p-6 space-y-5">
+
+            {/* Contact fields */}
             <div>
               <Label className="text-xs text-muted-foreground uppercase tracking-widest mb-1.5 block">Your Name *</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="John Smith" className="bg-white/5 border-white/10" />
@@ -224,6 +260,62 @@ export default function Quiz() {
               <Label className="text-xs text-muted-foreground uppercase tracking-widest mb-1.5 block">Phone Number *</Label>
               <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 123-4567" className="bg-white/5 border-white/10" />
             </div>
+
+            {/* Business Type */}
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase tracking-widest mb-2 block">Business Type *</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {["Mobile", "Fixed Shop", "Both"].map((opt) => (
+                  <button
+                    key={opt} type="button"
+                    onClick={() => setBusinessType(opt)}
+                    className={`py-2.5 px-3 rounded-xl border text-sm font-medium transition-all ${
+                      businessType === opt
+                        ? "border-gold bg-gold/10 text-gold"
+                        : "border-white/10 bg-white/[0.02] text-white/60 hover:border-white/20 hover:text-white/80"
+                    }`}
+                  >{opt}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Team Size */}
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase tracking-widest mb-2 block">Team Size *</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {["Just Me", "2–3 People", "4–10 People", "10+ People"].map((opt) => (
+                  <button
+                    key={opt} type="button"
+                    onClick={() => setTeamSize(opt)}
+                    className={`py-2.5 px-3 rounded-xl border text-sm font-medium transition-all ${
+                      teamSize === opt
+                        ? "border-gold bg-gold/10 text-gold"
+                        : "border-white/10 bg-white/[0.02] text-white/60 hover:border-white/20 hover:text-white/80"
+                    }`}
+                  >{opt}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Years in Business */}
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase tracking-widest mb-2 block">Years in Business *</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {["Under 1 Year", "1–3 Years", "3–7 Years", "7+ Years"].map((opt) => (
+                  <button
+                    key={opt} type="button"
+                    onClick={() => setYearsInBusiness(opt)}
+                    className={`py-2.5 px-3 rounded-xl border text-sm font-medium transition-all ${
+                      yearsInBusiness === opt
+                        ? "border-gold bg-gold/10 text-gold"
+                        : "border-white/10 bg-white/[0.02] text-white/60 hover:border-white/20 hover:text-white/80"
+                    }`}
+                  >{opt}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Password */}
             <div>
               <Label className="text-xs text-muted-foreground uppercase tracking-widest mb-1.5 block">
                 Create a Password <span className="text-muted-foreground/50 normal-case tracking-normal">(to access your results later)</span>

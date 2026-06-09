@@ -28,6 +28,8 @@ import {
   levelPermissions,
   shopProducts, InsertShopProduct,
   inventoryLogs, InsertInventoryLog,
+  quizResponses, InsertQuizResponse,
+  knowledgeChunks, InsertKnowledgeChunk,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1497,4 +1499,162 @@ export async function setProductStock(productId: number, stock: number): Promise
   const db = await getDb();
   if (!db) return;
   await db.update(shopProducts).set({ currentStock: stock }).where(eq(shopProducts.id, productId));
+}
+
+// ─── Quiz Responses ───────────────────────────────────────────────────────────
+
+export async function saveQuizResponse(data: InsertQuizResponse): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.insert(quizResponses).values(data).returning({ id: quizResponses.id });
+  return result[0]?.id ?? 0;
+}
+
+export async function getQuizResponseByUserId(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(quizResponses)
+    .where(eq(quizResponses.userId, userId))
+    .orderBy(desc(quizResponses.createdAt))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function updateQuizResponseUserId(responseId: number, userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(quizResponses).set({ userId }).where(eq(quizResponses.id, responseId));
+}
+
+export async function getQuizInsights() {
+  const db = await getDb();
+  if (!db) return null;
+
+  // Total responses + completion rate
+  const totals = await db.execute(sql`
+    SELECT
+      COUNT(*) AS total,
+      COUNT(*) FILTER (WHERE "completedPhase2" = true) AS phase2_completed,
+      AVG("percentage") AS avg_score,
+      MIN("percentage") AS min_score,
+      MAX("percentage") AS max_score
+    FROM "quizResponses"
+  `);
+
+  // Score band distribution
+  const bands = await db.execute(sql`
+    SELECT band, COUNT(*) AS count
+    FROM "quizResponses"
+    WHERE band IS NOT NULL
+    GROUP BY band
+    ORDER BY count DESC
+  `);
+
+  // Per-question answer distribution
+  const answerDist = await db.execute(sql`
+    SELECT
+      q.key AS question_id,
+      (q.value)::integer AS answer_value,
+      COUNT(*) AS count
+    FROM "quizResponses",
+    jsonb_each_text(answers) AS q
+    GROUP BY q.key, (q.value)::integer
+    ORDER BY q.key, answer_value
+  `);
+
+  // Pillar averages
+  const pillarAvg = await db.execute(sql`
+    SELECT
+      p.key AS pillar,
+      AVG((p.value->>'pct')::numeric) AS avg_pct,
+      MIN((p.value->>'pct')::numeric) AS min_pct,
+      MAX((p.value->>'pct')::numeric) AS max_pct
+    FROM "quizResponses",
+    jsonb_each("pillarScores") AS p
+    GROUP BY p.key
+    ORDER BY avg_pct ASC
+  `);
+
+  // Business context breakdown
+  const businessTypes = await db.execute(sql`
+    SELECT "businessType", COUNT(*) AS count
+    FROM "quizResponses"
+    WHERE "businessType" IS NOT NULL
+    GROUP BY "businessType"
+  `);
+
+  const teamSizes = await db.execute(sql`
+    SELECT "teamSize", COUNT(*) AS count
+    FROM "quizResponses"
+    WHERE "teamSize" IS NOT NULL
+    GROUP BY "teamSize"
+  `);
+
+  const yearsBreakdown = await db.execute(sql`
+    SELECT "yearsInBusiness", COUNT(*) AS count
+    FROM "quizResponses"
+    WHERE "yearsInBusiness" IS NOT NULL
+    GROUP BY "yearsInBusiness"
+  `);
+
+  // Volume over time (last 90 days, by week)
+  const volumeOverTime = await db.execute(sql`
+    SELECT
+      DATE_TRUNC('week', "createdAt") AS week,
+      COUNT(*) AS count
+    FROM "quizResponses"
+    WHERE "createdAt" > NOW() - INTERVAL '90 days'
+    GROUP BY week
+    ORDER BY week
+  `);
+
+  // Most recent 20 responses
+  const recent = await db.select().from(quizResponses)
+    .orderBy(desc(quizResponses.createdAt))
+    .limit(20);
+
+  return {
+    totals: totals.rows[0],
+    bands: bands.rows,
+    answerDist: answerDist.rows,
+    pillarAvg: pillarAvg.rows,
+    businessTypes: businessTypes.rows,
+    teamSizes: teamSizes.rows,
+    yearsBreakdown: yearsBreakdown.rows,
+    volumeOverTime: volumeOverTime.rows,
+    recent,
+  };
+}
+
+// ─── Knowledge Base ───────────────────────────────────────────────────────────
+
+export async function getKnowledgeChunks(filters?: { pillar?: string; scoreBand?: string; activeOnly?: boolean }) {
+  const db = await getDb();
+  if (!db) return [];
+  let q = db.select().from(knowledgeChunks);
+  const conds = [];
+  if (filters?.activeOnly !== false) conds.push(eq(knowledgeChunks.active, true));
+  if (filters?.pillar) conds.push(eq(knowledgeChunks.pillar, filters.pillar));
+  if (filters?.scoreBand) conds.push(eq(knowledgeChunks.scoreBand, filters.scoreBand));
+  if (conds.length) q = q.where(and(...conds)) as typeof q;
+  return q.orderBy(desc(knowledgeChunks.createdAt));
+}
+
+export async function saveKnowledgeChunk(data: InsertKnowledgeChunk): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.insert(knowledgeChunks).values(data).returning({ id: knowledgeChunks.id });
+  return result[0]?.id ?? 0;
+}
+
+export async function updateKnowledgeChunk(id: number, data: Partial<InsertKnowledgeChunk>): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(knowledgeChunks).set({ ...data, updatedAt: new Date() }).where(eq(knowledgeChunks.id, id));
+}
+
+export async function deleteKnowledgeChunk(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(knowledgeChunks).where(eq(knowledgeChunks.id, id));
 }

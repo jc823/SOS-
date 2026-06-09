@@ -166,6 +166,56 @@ export async function initializeDatabase(): Promise<void> {
     `;
 
     await sql`
+      CREATE TABLE IF NOT EXISTS "quizResponses" (
+        "id" serial PRIMARY KEY,
+        "userId" integer,
+        "name" text,
+        "email" text,
+        "phone" text,
+        "businessType" text,
+        "teamSize" text,
+        "yearsInBusiness" text,
+        "city" text,
+        "state" text,
+        "answers" jsonb NOT NULL,
+        "totalScore" integer NOT NULL,
+        "maxScore" integer NOT NULL DEFAULT 24,
+        "percentage" integer NOT NULL,
+        "pillarScores" jsonb NOT NULL,
+        "band" text,
+        "completedPhase2" boolean NOT NULL DEFAULT false,
+        "bookedCall" boolean NOT NULL DEFAULT false,
+        "becameCustomer" boolean NOT NULL DEFAULT false,
+        "retakeCount" integer NOT NULL DEFAULT 0,
+        "embeddingJson" text,
+        "embeddingModel" text,
+        "embeddingUpdatedAt" timestamp,
+        "createdAt" timestamp NOT NULL DEFAULT now(),
+        "updatedAt" timestamp NOT NULL DEFAULT now()
+      )
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS "knowledgeChunks" (
+        "id" serial PRIMARY KEY,
+        "title" text,
+        "content" text NOT NULL,
+        "source" text NOT NULL,
+        "tags" jsonb,
+        "pillar" text,
+        "scoreBand" text,
+        "businessType" text,
+        "embeddingJson" text,
+        "embeddingModel" text,
+        "embeddingUpdatedAt" timestamp,
+        "active" boolean NOT NULL DEFAULT true,
+        "createdById" integer,
+        "createdAt" timestamp NOT NULL DEFAULT now(),
+        "updatedAt" timestamp NOT NULL DEFAULT now()
+      )
+    `;
+
+    await sql`
       CREATE TABLE IF NOT EXISTS "seoAudits" (
         "id" serial PRIMARY KEY,
         "shopId" integer,
