@@ -50,10 +50,21 @@ export async function sendWelcomeEmail({
     subject: `${firstName}, your SOS results are ready — here's what they mean`,
     html: `
 <!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#000000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-  <div style="max-width:580px;margin:0 auto;padding:40px 20px;">
+<html bgcolor="#000000" style="background:#000000;">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="supported-color-schemes" content="dark">
+  <style>
+    body, html { background-color: #000000 !important; }
+    * { box-sizing: border-box; }
+  </style>
+</head>
+<body style="margin:0;padding:0;background:#000000 !important;background-color:#000000 !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#000000" style="background:#000000;background-color:#000000;">
+<tr><td align="center" bgcolor="#000000" style="background:#000000;padding:0;">
+  <div style="max-width:580px;width:100%;margin:0 auto;padding:40px 20px;background:#000000;background-color:#000000;">
 
     <!-- Header -->
     <div style="text-align:center;margin-bottom:36px;">
@@ -144,6 +155,8 @@ export async function sendWelcomeEmail({
     </div>
 
   </div>
+</td></tr>
+</table>
 </body>
 </html>`,
   });
