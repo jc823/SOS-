@@ -1,5 +1,5 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
-import { sendWelcomeEmail, sendMagicLinkEmail, sendAlreadyHaveAccountEmail } from "./email";
+import { sendWelcomeEmail, sendMagicLinkEmail, sendReturningUserEmail } from "./email";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, staffProcedure, adminProcedure, superAdminProcedure, proProcedure, shopManagerProcedure, router } from "./_core/trpc";
@@ -182,8 +182,19 @@ export const appRouter = router({
             appUrl: process.env.APP_URL ?? "https://sos-production-ab11.up.railway.app",
           }).catch(console.error);
         } else {
-          // Existing user — send "already have account" nudge (fire-and-forget)
-          sendAlreadyHaveAccountEmail({ to: input.email, name: user.name ?? input.name }).catch(console.error);
+          // Existing user — generate a fresh magic link so the email CTA signs them straight in
+          const returningToken = crypto.randomBytes(32).toString('hex');
+          const returningExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+          await db.setMagicLinkToken(user.id, returningToken, returningExpiry);
+          const returningMagicLink = `${process.env.APP_URL ?? 'https://sos-production-ab11.up.railway.app'}/login?magic=${returningToken}`;
+          // Send results email with score, saved username, and magic link CTA
+          sendReturningUserEmail({
+            to: input.email,
+            name: user.name ?? input.name,
+            username: user.username ?? user.email ?? "",
+            score: input.partialScore,
+            magicLink: returningMagicLink,
+          }).catch(console.error);
           // Fire webhook for returning lead (score update)
           webhookService.dispatchWebhookEvent("lead.registered", {
             name: user.name ?? input.name,
