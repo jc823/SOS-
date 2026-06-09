@@ -2658,6 +2658,26 @@ Do not use bullet points unless specifically asked. Write in plain paragraphs.`;
   // verifyMagicLink: validates token, creates session, clears token.
 
   // ─── Billing ──────────────────────────────────────────────────────────────
+  // ─── Email Debug (super_admin only — remove after testing) ──────────────────
+  debug: router({
+    testEmail: superAdminProcedure
+      .input(z.object({ to: z.string().email() }))
+      .mutation(async ({ input }) => {
+        const { Resend } = await import("resend");
+        const key = process.env.RESEND_API_KEY;
+        const from = process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev";
+        if (!key) return { error: "NO_API_KEY", from, key: null };
+        const resend = new Resend(key);
+        const result = await resend.emails.send({
+          from,
+          to: input.to,
+          subject: "SOS Email Test",
+          html: "<p>If you see this, email is working!</p>",
+        });
+        return { data: result.data, error: result.error, from, keyPrefix: key.slice(0, 8) };
+      }),
+  }),
+
   billing: router({
     // Get current subscription status
     getStatus: protectedProcedure.query(async ({ ctx }) => {
